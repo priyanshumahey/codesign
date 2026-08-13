@@ -1,0 +1,387 @@
+//! Space files (`.codesign`) plus the recents index that backs the launcher.
+
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Manager};
+
+pub const SPACE_EXTENSION: &str = "codesign";
+const RECENTS_FILE: &str = "recents.json";
+const MAX_RECENTS: usize = 60;
+const SPACE_VERSION: u32 = 1;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum EntryKind {
+    File,
+    Folder,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecentEntry {
+    pub path: String,
+    pub name: String,
+    pub kind: EntryKind,
+    pub last_opened: i64,
+    #[serde(default)]
+    pub pinned: bool,
+}
+
+/// A recents row decorated with live filesystem facts the UI needs.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecentItem {
+    pub path: String,
+    pub name: String,
+    pub kind: EntryKind,
+    pub last_opened: i64,
+    pub pinned: bool,
+    pub exists: bool,
+    pub modified: Option<i64>,
+    pub size: Option<u64>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpaceSummary {
+    pub path: String,
+    pub name: String,
+    pub modified: Option<i64>,
+    pub size: Option<u64>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpaceDocument {
+    #[serde(default)]
+    pub nodes: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub edges: Vec<serde_json::Value>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpaceFile {
+    pub version: u32,
+    pub id: String,
+    pub name: String,
+    pub created_at: i64,
+    pub updated_at: i64,
+    #[serde(default)]
+    pub document: SpaceDocument,
+    /// Absolute path on disk. Never persisted — the file's location is the truth.
+    #[serde(skip_deserializing)]
+    pub path: String,
+}
+
+fn now_ms() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
+
+fn system_time_ms(time: SystemTime) -> Option<i64> {
+    time.duration_since(UNIX_EPOCH)
+        .ok()
+        .map(|d| d.as_millis() as i64)
+}
+
+/// Strip characters that are illegal or confusing in a file name.
+fn sanitize_file_stem(name: &str) -> String {
+    let cleaned: String = name
+        .chars()
+        .map(|c| match c {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '-',
+            c if c.is_control() => ' ',
+            c => c,
+        })
+        .collect();
+    let trimmed = cleaned.trim().trim_matches('.').trim().to_string();
+    if trimmed.is_empty() {
+        "Untitled space".to_string()
+    } else {
+        trimmed.chars().take(80).collect()
+    }
+}
+
+fn display_name(path: &Path) -> String {
+    path.file_stem()
+        .or_else(|| path.file_name())
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| path.to_string_lossy().to_string())
+}
+
+/// Folder names keep their dots — `file_stem` would truncate "api.v2" to "api".
+fn folder_display_name(path: &Path) -> String {
+    path.file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| path.to_string_lossy().to_string())
+}
+
+fn with_space_extension(path: &Path) -> PathBuf {
+    match path.extension() {
+        Some(ext) if ext.eq_ignore_ascii_case(SPACE_EXTENSION) => path.to_path_buf(),
+        _ => {
+            let mut name = path
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| "Untitled space".to_string());
+            name.push('.');
+            name.push_str(SPACE_EXTENSION);
+            path.with_file_name(name)
+        }
+    }
+}
+
+fn recents_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| format!("no config directory: {e}"))?;
+    fs::create_dir_all(&dir).map_err(|e| format!("could not create config directory: {e}"))?;
+    Ok(dir.join(RECENTS_FILE))
+}
+
+fn read_recents(app: &AppHandle) -> Vec<RecentEntry> {
+    let Ok(path) = recents_path(app) else {
+        return Vec::new();
+    };
+    let Ok(raw) = fs::read_to_string(&path) else {
+        return Vec::new();
+    };
+    serde_json::from_str(&raw).unwrap_or_default()
+}
+
+fn write_recents(app: &AppHandle, entries: &[RecentEntry]) -> Result<(), String> {
+    let path = recents_path(app)?;
+    let json = serde_json::to_string_pretty(entries).map_err(|e| e.to_string())?;
+    fs::write(&path, json).map_err(|e| format!("could not save recents: {e}"))
+}
+
+/// Move `path` to the front of the recents list, inserting it when new.
+fn touch_recent(app: &AppHandle, path: &Path, kind: EntryKind, name: Option<String>) {
+    let key = path.to_string_lossy().to_string();
+    let mut entries = read_recents(app);
+    let pinned = entries
+        .iter()
+        .find(|e| e.path == key)
+        .map(|e| e.pinned)
+        .unwrap_or(false);
+    entries.retain(|e| e.path != key);
+    let fallback = match kind {
+        EntryKind::Folder => folder_display_name(path),
+        EntryKind::File => display_name(path),
+    };
+    entries.insert(
+        0,
+        RecentEntry {
+            name: name.unwrap_or(fallback),
+            path: key,
+            kind,
+            last_opened: now_ms(),
+            pinned,
+        },
+    );
+    entries.truncate(MAX_RECENTS);
+    let _ = write_recents(app, &entries);
+}
+
+fn read_space_file(path: &Path) -> Result<SpaceFile, String> {
+    let raw = fs::read_to_string(path).map_err(|e| format!("could not read space: {e}"))?;
+    let mut space: SpaceFile =
+        serde_json::from_str(&raw).map_err(|e| format!("not a valid space file: {e}"))?;
+    space.path = path.to_string_lossy().to_string();
+    Ok(space)
+}
+
+fn write_space_file(path: &Path, space: &SpaceFile) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("could not create folder: {e}"))?;
+    }
+    let json = serde_json::to_string_pretty(space).map_err(|e| e.to_string())?;
+    fs::write(path, json).map_err(|e| format!("could not write space: {e}"))
+}
+
+#[tauri::command]
+pub fn list_recents(app: AppHandle) -> Vec<RecentItem> {
+    read_recents(&app)
+        .into_iter()
+        .map(|entry| {
+            let path = PathBuf::from(&entry.path);
+            let meta = fs::metadata(&path).ok();
+            RecentItem {
+                exists: meta.is_some(),
+                modified: meta
+                    .as_ref()
+                    .and_then(|m| m.modified().ok())
+                    .and_then(system_time_ms),
+                size: meta.as_ref().filter(|m| m.is_file()).map(|m| m.len()),
+                path: entry.path,
+                name: entry.name,
+                kind: entry.kind,
+                last_opened: entry.last_opened,
+                pinned: entry.pinned,
+            }
+        })
+        .collect()
+}
+
+#[tauri::command]
+pub fn create_space(app: AppHandle, path: String, name: Option<String>) -> Result<SpaceFile, String> {
+    // The save dialog already confirmed any overwrite, so honour the chosen path.
+    let target = with_space_extension(Path::new(&path));
+    let display = name
+        .map(|n| sanitize_file_stem(&n))
+        .unwrap_or_else(|| display_name(&target));
+    let now = now_ms();
+
+    let space = SpaceFile {
+        version: SPACE_VERSION,
+        id: uuid::Uuid::new_v4().to_string(),
+        name: display.clone(),
+        created_at: now,
+        updated_at: now,
+        document: SpaceDocument::default(),
+        path: target.to_string_lossy().to_string(),
+    };
+
+    write_space_file(&target, &space)?;
+    touch_recent(&app, &target, EntryKind::File, Some(display));
+    Ok(space)
+}
+
+#[tauri::command]
+pub fn open_space(app: AppHandle, path: String) -> Result<SpaceFile, String> {
+    let target = PathBuf::from(&path);
+    if !target.exists() {
+        return Err("That space no longer exists at this location.".into());
+    }
+    let space = read_space_file(&target)?;
+    touch_recent(&app, &target, EntryKind::File, Some(space.name.clone()));
+    Ok(space)
+}
+
+#[tauri::command]
+pub fn rename_space(app: AppHandle, path: String, name: String) -> Result<SpaceFile, String> {
+    let source = PathBuf::from(&path);
+    if !source.exists() {
+        return Err("That space no longer exists at this location.".into());
+    }
+
+    let display = sanitize_file_stem(&name);
+    let mut space = read_space_file(&source)?;
+    space.name = display.clone();
+    space.updated_at = now_ms();
+
+    let desired = source.with_file_name(format!("{display}.{SPACE_EXTENSION}"));
+    if desired != source && desired.exists() {
+        return Err(format!("A space named \"{display}\" already exists in this folder."));
+    }
+
+    write_space_file(&source, &space)?;
+    if desired != source {
+        fs::rename(&source, &desired).map_err(|e| format!("could not rename file: {e}"))?;
+    }
+    space.path = desired.to_string_lossy().to_string();
+
+    let key = source.to_string_lossy().to_string();
+    let mut entries = read_recents(&app);
+    if let Some(entry) = entries.iter_mut().find(|e| e.path == key) {
+        entry.path = space.path.clone();
+        entry.name = display;
+    }
+    write_recents(&app, &entries)?;
+
+    Ok(space)
+}
+
+/// Sends the space to the OS trash so a mistaken click stays recoverable.
+#[tauri::command]
+pub fn delete_space(app: AppHandle, path: String) -> Result<(), String> {
+    let target = PathBuf::from(&path);
+    if target.exists() {
+        trash::delete(&target).map_err(|e| format!("could not move to trash: {e}"))?;
+    }
+    forget_recent(app, path)
+}
+
+#[tauri::command]
+pub fn forget_recent(app: AppHandle, path: String) -> Result<(), String> {
+    let mut entries = read_recents(&app);
+    entries.retain(|e| e.path != path);
+    write_recents(&app, &entries)
+}
+
+#[tauri::command]
+pub fn set_pinned(app: AppHandle, path: String, pinned: bool) -> Result<(), String> {
+    let mut entries = read_recents(&app);
+    if let Some(entry) = entries.iter_mut().find(|e| e.path == path) {
+        entry.pinned = pinned;
+    }
+    write_recents(&app, &entries)
+}
+
+#[tauri::command]
+pub fn add_folder(app: AppHandle, path: String) -> Result<(), String> {
+    let target = PathBuf::from(&path);
+    if !target.is_dir() {
+        return Err("That folder no longer exists at this location.".into());
+    }
+    touch_recent(&app, &target, EntryKind::Folder, None);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn list_folder_spaces(path: String) -> Result<Vec<SpaceSummary>, String> {
+    let dir = PathBuf::from(&path);
+    let entries = fs::read_dir(&dir).map_err(|e| format!("could not read folder: {e}"))?;
+
+    let mut spaces: Vec<SpaceSummary> = entries
+        .flatten()
+        .filter_map(|entry| {
+            let path = entry.path();
+            let is_space = path
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case(SPACE_EXTENSION));
+            if !is_space {
+                return None;
+            }
+            let meta = entry.metadata().ok();
+            Some(SpaceSummary {
+                name: read_space_file(&path)
+                    .map(|s| s.name)
+                    .unwrap_or_else(|_| display_name(&path)),
+                path: path.to_string_lossy().to_string(),
+                modified: meta
+                    .as_ref()
+                    .and_then(|m| m.modified().ok())
+                    .and_then(system_time_ms),
+                size: meta.as_ref().map(|m| m.len()),
+            })
+        })
+        .collect();
+
+    spaces.sort_by(|a, b| b.modified.cmp(&a.modified));
+    Ok(spaces)
+}
+
+#[tauri::command]
+pub fn reveal_in_file_manager(path: String) -> Result<(), String> {
+    tauri_plugin_opener::reveal_item_in_dir(PathBuf::from(path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn default_space_dir(app: AppHandle) -> Result<String, String> {
+    let base = app
+        .path()
+        .document_dir()
+        .or_else(|_| app.path().home_dir())
+        .map_err(|e| format!("no home directory: {e}"))?;
+    let dir = base.join("Codesign");
+    fs::create_dir_all(&dir).map_err(|e| format!("could not create folder: {e}"))?;
+    Ok(dir.to_string_lossy().to_string())
+}
