@@ -11,7 +11,9 @@ node_modules
 dist
 dist-ssr
 *.local
+*.tsbuildinfo
 .reference/
+public/icons-manifest.json
 
 # Editor directories and files
 .vscode/*

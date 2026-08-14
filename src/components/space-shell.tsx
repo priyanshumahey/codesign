@@ -1,9 +1,9 @@
 import { ArrowLeft, FolderOpen } from "@phosphor-icons/react"
 
+import { SpaceCanvas } from "@/components/space/space-canvas"
 import { Button } from "@/components/ui/button"
 import { revealInFileManager, type SpaceFile } from "@/lib/spaces"
 
-/** Placeholder shell that stands in until the canvas editor lands. */
 export function SpaceShell({
   space,
   onBack,
@@ -12,7 +12,7 @@ export function SpaceShell({
   onBack: () => void
 }) {
   return (
-    <div className="flex min-h-0 flex-1 pb-2 pr-2 pl-2">
+    <div className="flex min-h-0 flex-1 px-2 pb-2">
       <div className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-background shadow-sm">
         <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border/60 px-3">
           <Button variant="ghost" size="sm" onClick={onBack} className="gap-1.5">
@@ -35,17 +35,7 @@ export function SpaceShell({
           </Button>
         </header>
 
-        <div className="grid min-h-0 flex-1 place-items-center p-8">
-          <div className="flex max-w-sm flex-col items-center gap-2 text-center">
-            <h2 className="font-heading text-[15px] font-semibold tracking-tight">
-              Space opened
-            </h2>
-            <p className="text-[13px] leading-relaxed text-muted-foreground">
-              The design canvas lands here next. This space holds{" "}
-              {space.document.nodes.length} nodes and {space.document.edges.length} edges.
-            </p>
-          </div>
-        </div>
+        <SpaceCanvas />
       </div>
     </div>
   )
