@@ -10,10 +10,11 @@ import {
   type XYPosition,
 } from "@xyflow/react"
 
-import { computeAutoLayout } from "./auto-layout"
+import { fromDocument, toDocument } from "./document"
 import { peekPendingIconDrag, setPendingIconDrag } from "./drag-payload"
 import { retargetEdges } from "./edge-routing"
 import { absolutePosition, findBoundaryAt, nodeSize } from "./geometry"
+import { reconcileEdges, reconcileNodes } from "./reconcile"
 import {
   BOUNDARY_COLORS,
   CONTAINER_BOUNDARY_ID,
@@ -31,6 +32,8 @@ import {
   type NoteNodeData,
   type ServiceNodeData,
 } from "./types"
+import { applyOps as invokeApplyOps, type OpOutcome, type SpaceOp } from "@/lib/ops"
+import type { SpaceDocument } from "@/lib/spaces"
 
 type Snapshot = { nodes: Node[]; edges: Edge[] }
 
@@ -311,19 +314,45 @@ export function useSpaceCanvas(initial: Snapshot) {
     [setNodes, setEdges]
   )
 
-  const runAutoLayout = useCallback(() => {
-    const positions = computeAutoLayout(nodesRef.current, edgesRef.current)
-    if (positions.size === 0) return
-    snapshot()
+  /**
+   * Folds in a document computed outside React — by the op layer or the agent.
+   * Does not snapshot, so a caller can checkpoint once and stream many updates
+   * into a single undo step.
+   */
+  const setDocument = useCallback(
+    (document: SpaceDocument) => {
+      const next = fromDocument(document)
+      setNodes((current) => reconcileNodes(current, next.nodes))
+      setEdges((current) =>
+        retargetEdges(reconcileEdges(current, next.edges), next.nodes)
+      )
+    },
+    [setNodes, setEdges]
+  )
 
-    const laidOut = nodesRef.current.map((node) => {
-      const position = positions.get(node.id)
-      return position ? { ...node, position } : node
-    })
-    setNodes(laidOut)
-    // Positions land in the same commit, so route against the new geometry.
-    setEdges((current) => retargetEdges(current, laidOut))
-  }, [setNodes, setEdges, snapshot])
+  /**
+   * Runs a batch of ops through the Rust op layer and folds the result back in.
+   * One batch is one snapshot, so an entire agent turn undoes with a single ⌘Z.
+   */
+  const applyOps = useCallback(
+    async (ops: SpaceOp[]): Promise<OpOutcome[]> => {
+      if (ops.length === 0) return []
+      const result = await invokeApplyOps(
+        toDocument(nodesRef.current, edgesRef.current),
+        ops
+      )
+      snapshot()
+      setDocument(result.document)
+      return result.outcomes
+    },
+    [setDocument, snapshot]
+  )
+
+  // Layout lives in Rust so the canvas, the agent and the MCP server all tidy
+  // up the same way — and so nodes inside boundaries are laid out too.
+  const runAutoLayout = useCallback(() => {
+    void applyOps([{ op: "auto_layout" }])
+  }, [applyOps])
 
   return {
     nodes,
@@ -347,6 +376,8 @@ export function useSpaceCanvas(initial: Snapshot) {
     clearSelection,
     selectOnly,
     runAutoLayout,
+    applyOps,
+    setDocument,
     undo,
     redo,
   }

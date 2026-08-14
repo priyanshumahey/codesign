@@ -1,3 +1,4 @@
+mod ops;
 mod spaces;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -5,6 +6,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .manage(ops::OpsState::default())
         .invoke_handler(tauri::generate_handler![
             spaces::list_recents,
             spaces::create_space,
@@ -18,6 +20,10 @@ pub fn run() {
             spaces::list_folder_spaces,
             spaces::reveal_in_file_manager,
             spaces::default_space_dir,
+            ops::apply_ops,
+            ops::load_icon_manifest,
+            ops::search_icons,
+            ops::summarize_document,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
