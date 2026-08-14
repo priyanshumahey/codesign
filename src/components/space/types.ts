@@ -1,7 +1,7 @@
 /** Shared vocabulary for the design canvas. Keep node data JSON-serializable. */
 
 export const SERVICE_NODE_TYPE = "service"
-export const GROUP_NODE_TYPE = "group"
+export const GROUP_NODE_TYPE = "boundary"
 export const NOTE_NODE_TYPE = "note"
 export const SYSTEM_EDGE_TYPE = "system"
 
@@ -65,7 +65,26 @@ export type SystemEdgeData = {
   notes?: string
   request?: string
   response?: string
+  direction?: EdgeDirection
   [key: string]: unknown
+}
+
+/** Which ends of a connection carry an arrowhead. */
+export const EDGE_DIRECTIONS = ["forward", "backward", "both", "none"] as const
+
+export type EdgeDirection = (typeof EDGE_DIRECTIONS)[number]
+
+export const DEFAULT_EDGE_DIRECTION: EdgeDirection = "forward"
+
+export const EDGE_DIRECTION_LABELS: Record<EdgeDirection, string> = {
+  forward: "Source → target",
+  backward: "Target → source",
+  both: "Both ways",
+  none: "No arrow",
+}
+
+export function resolveEdgeDirection(value: unknown): EdgeDirection {
+  return EDGE_DIRECTIONS.find((direction) => direction === value) ?? DEFAULT_EDGE_DIRECTION
 }
 
 export const HTTP_METHODS = [
@@ -138,8 +157,5 @@ export const BOUNDARY_COLOR_STYLES: Record<
 }
 
 export function resolveBoundaryColor(value: unknown): BoundaryColor {
-  return typeof value === "string" &&
-    (BOUNDARY_COLORS as readonly string[]).includes(value)
-    ? (value as BoundaryColor)
-    : DEFAULT_BOUNDARY_COLOR
+  return BOUNDARY_COLORS.find((color) => color === value) ?? DEFAULT_BOUNDARY_COLOR
 }

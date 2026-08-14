@@ -2,6 +2,7 @@ import type { Edge, Node, XYPosition } from "@xyflow/react"
 
 import type { SpaceDocument } from "@/lib/spaces"
 import { sortByGroupParenting } from "./geometry"
+import { GROUP_NODE_TYPE } from "./types"
 
 /**
  * React Flow decorates nodes with runtime state (`measured`, `selected`,
@@ -47,7 +48,8 @@ function readNode(raw: unknown): Node | null {
   }
   return {
     id,
-    type,
+    // `group` collided with React Flow's built-in node styling before v1.
+    type: type === "group" ? GROUP_NODE_TYPE : type,
     position,
     data: isRecord(data) ? data : {},
     ...(typeof width === "number" ? { width } : {}),
