@@ -17,39 +17,53 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import type { SpacePreview } from "@/lib/preview"
 import { buildSpaceActions, type SpaceActionHandlers } from "./space-actions"
+import { SpaceThumbnail } from "./space-thumbnail"
 import type { LauncherItem } from "./types"
 
-function Thumbnail({ item }: { item: LauncherItem }) {
+function Thumbnail({
+  item,
+  preview,
+}: {
+  item: LauncherItem
+  preview?: SpacePreview
+}) {
+  const hasPreview = !item.missing && item.kind === "file" && preview?.nodes.length
+
   return (
     <div
       className={cn(
-        "relative aspect-[4/3] overflow-hidden rounded-xl border bg-muted/30 transition-colors",
+        "relative aspect-[4/3] overflow-hidden rounded-xl border bg-muted/25 transition-colors",
         item.missing ? "border-dashed border-border" : "border-border/70 group-hover:border-foreground/25"
       )}
     >
-      {!item.missing && <div className="space-grid absolute inset-0 opacity-50" />}
-      <div className="absolute inset-0 grid place-items-center">
-        {item.kind === "folder" ? (
-          <Folder
-            className={cn(
-              "size-7",
-              item.missing ? "text-muted-foreground/40" : "text-muted-foreground/70"
-            )}
-          />
-        ) : (
-          <span
-            className={cn(
-              "grid size-10 place-items-center rounded-lg shadow-sm",
-              item.missing
-                ? "bg-muted text-muted-foreground/50"
-                : "bg-background text-foreground"
-            )}
-          >
-            <CodesignMark className="size-5" />
-          </span>
-        )}
-      </div>
+      {hasPreview ? (
+        <SpaceThumbnail preview={preview} />
+      ) : (
+        <div className="absolute inset-0 grid place-items-center">
+          {item.kind === "folder" ? (
+            <Folder
+              className={cn(
+                "size-7",
+                item.missing ? "text-muted-foreground/40" : "text-muted-foreground/70"
+              )}
+            />
+          ) : (
+            <span
+              className={cn(
+                "grid size-10 place-items-center rounded-lg shadow-sm",
+                item.missing
+                  ? "bg-muted text-muted-foreground/50"
+                  : "bg-background text-foreground"
+              )}
+            >
+              <CodesignMark className="size-5" />
+            </span>
+          )}
+        </div>
+      )}
+
       {item.missing && (
         <span className="absolute left-2 top-2 rounded border border-border/70 bg-background/90 px-1.5 py-px text-[10px] font-medium text-muted-foreground">
           Missing
@@ -61,9 +75,11 @@ function Thumbnail({ item }: { item: LauncherItem }) {
 
 export function SpaceTile({
   item,
+  preview,
   handlers,
 }: {
   item: LauncherItem
+  preview?: SpacePreview
   handlers: SpaceActionHandlers
 }) {
   const actions = buildSpaceActions(item, handlers)
@@ -76,7 +92,7 @@ export function SpaceTile({
           onClick={() => handlers.onOpen(item)}
           className="w-full rounded-xl text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          <Thumbnail item={item} />
+          <Thumbnail item={item} preview={preview} />
           <div className="mt-2 flex items-start gap-1.5 px-0.5">
             <div className="min-w-0 flex-1">
               <p

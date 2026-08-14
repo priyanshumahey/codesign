@@ -20,9 +20,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { formatRelativeTime, parentDir, shortenPath } from "@/lib/format"
+import { useSpacePreviews } from "@/lib/preview"
 import {
   addFolder,
   createSpaceViaDialog,
+  defaultSpaceDir,
   deleteSpace,
   errorMessage,
   forgetRecent,
@@ -63,6 +65,7 @@ export function Launcher({ onOpenSpace }: { onOpenSpace: (space: SpaceFile) => v
   const [deleteTarget, setDeleteTarget] = useState<LauncherItem | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [home, setHome] = useState<string | null>(null)
+  const [onDisk, setOnDisk] = useState<SpaceSummary[]>([])
 
   const refreshRecents = useCallback(async () => {
     try {
@@ -72,12 +75,23 @@ export function Launcher({ onOpenSpace }: { onOpenSpace: (space: SpaceFile) => v
     }
   }, [])
 
+  // Spaces can be created without the app — by the MCP server, or by dropping a
+  // file in — so the default folder is always listed, not just what was opened.
+  const refreshOnDisk = useCallback(async () => {
+    try {
+      setOnDisk(await listFolderSpaces(await defaultSpaceDir()))
+    } catch {
+      setOnDisk([])
+    }
+  }, [])
+
   useEffect(() => {
     void refreshRecents()
+    void refreshOnDisk()
     void homeDir()
       .then((dir) => setHome(dir.replace(/\/$/, "")))
       .catch(() => setHome(null))
-  }, [refreshRecents])
+  }, [refreshRecents, refreshOnDisk])
 
   useEffect(() => {
     if (view.kind !== "folder") return
@@ -123,6 +137,25 @@ export function Launcher({ onOpenSpace }: { onOpenSpace: (space: SpaceFile) => v
                 : "No longer on disk",
             }))
 
+    // Anything in the default folder the app has not opened yet.
+    if (view.kind === "recents") {
+      const known = new Set(source.map((item) => item.path))
+      for (const space of onDisk) {
+        if (known.has(space.path)) continue
+        source.push({
+          path: space.path,
+          name: space.name,
+          kind: "file",
+          pinned: false,
+          missing: false,
+          tracked: false,
+          lastOpened: 0,
+          modified: space.modified,
+          meta: `Edited ${formatRelativeTime(space.modified)}`,
+        })
+      }
+    }
+
     const needle = query.trim().toLowerCase()
     const filtered = needle
       ? source.filter(
@@ -138,7 +171,17 @@ export function Launcher({ onOpenSpace }: { onOpenSpace: (space: SpaceFile) => v
       if (sort === "modified") return (b.modified ?? 0) - (a.modified ?? 0)
       return b.lastOpened - a.lastOpened
     })
-  }, [view, folderSpaces, recents, query, sort])
+  }, [view, folderSpaces, recents, onDisk, query, sort])
+
+  const previews = useSpacePreviews(
+    useMemo(
+      () =>
+        items
+          .filter((item) => item.kind === "file" && !item.missing)
+          .map((item) => item.path),
+      [items]
+    )
+  )
 
   const openItem = useCallback(
     async (item: LauncherItem) => {
@@ -321,7 +364,12 @@ export function Launcher({ onOpenSpace }: { onOpenSpace: (space: SpaceFile) => v
             ) : layout === "grid" ? (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(186px,1fr))] gap-x-4 gap-y-5 p-5">
                 {items.map((item) => (
-                  <SpaceTile key={item.path} item={item} handlers={handlers} />
+                  <SpaceTile
+                    key={item.path}
+                    item={item}
+                    preview={previews[item.path]}
+                    handlers={handlers}
+                  />
                 ))}
               </div>
             ) : (
@@ -356,7 +404,7 @@ export function Launcher({ onOpenSpace }: { onOpenSpace: (space: SpaceFile) => v
           setRenameTarget(null)
           void renameSpace(item.path, name)
             .then(async () => {
-              await refreshRecents()
+              await Promise.all([refreshRecents(), refreshOnDisk()])
               if (view.kind === "folder") setFolderSpaces(await listFolderSpaces(view.path))
             })
             .catch((cause) => setError(errorMessage(cause)))
@@ -370,7 +418,7 @@ export function Launcher({ onOpenSpace }: { onOpenSpace: (space: SpaceFile) => v
           setDeleteTarget(null)
           void deleteSpace(item.path)
             .then(async () => {
-              await refreshRecents()
+              await Promise.all([refreshRecents(), refreshOnDisk()])
               if (view.kind === "folder") setFolderSpaces(await listFolderSpaces(view.path))
             })
             .catch((cause) => setError(errorMessage(cause)))

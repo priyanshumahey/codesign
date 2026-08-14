@@ -1,6 +1,7 @@
 pub mod ai;
-mod mcp_link;
-mod ops;
+pub mod mcp_link;
+pub mod ops;
+pub mod preview;
 pub mod spaces;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -36,6 +37,7 @@ pub fn run() {
             ai::ai_delete_conversation,
             ai::ai_send,
             mcp_link::mcp_config,
+            preview::space_previews,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
