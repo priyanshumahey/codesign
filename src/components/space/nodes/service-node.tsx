@@ -38,7 +38,7 @@ function ServiceNodeBase({ id, data, selected }: NodeProps & { data: ServiceNode
         <IconGraphic
           path={data.iconPath}
           mono={data.iconMono}
-          className="size-9 text-foreground"
+          className="size-9"
         />
       </div>
 

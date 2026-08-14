@@ -22,45 +22,118 @@ type IconEntry = {
   mono?: boolean
 }
 
-const NAMED_COLORS: Record<string, number> = {
-  black: 0,
-  white: 1,
-  none: -1,
-  transparent: -1,
-  currentcolor: -1,
+type Rgb = [number, number, number]
+
+const NAMED_COLORS: Record<string, Rgb> = {
+  black: [0, 0, 0],
+  white: [255, 255, 255],
+  gray: [128, 128, 128],
+  grey: [128, 128, 128],
+  silver: [192, 192, 192],
+  navy: [0, 0, 128],
+  maroon: [128, 0, 0],
+  purple: [128, 0, 128],
+  green: [0, 128, 0],
+  teal: [0, 128, 128],
+  olive: [128, 128, 0],
+  red: [255, 0, 0],
+  blue: [0, 0, 255],
+  lime: [0, 255, 0],
+  aqua: [0, 255, 255],
+  cyan: [0, 255, 255],
+  fuchsia: [255, 0, 255],
+  magenta: [255, 0, 255],
+  yellow: [255, 255, 0],
+  orange: [255, 165, 0],
 }
 
-function luminance(hex: string): number {
-  let value = hex.slice(1)
-  if (value.length === 3) value = value.split("").map((c) => c + c).join("")
+function parseHex(token: string): Rgb | null {
+  let value = token.slice(1)
+  if (value.length === 3 || value.length === 4) {
+    value = value
+      .slice(0, 3)
+      .split("")
+      .map((c) => c + c)
+      .join("")
+  }
   if (value.length === 8) value = value.slice(0, 6)
-  if (value.length !== 6) return -1
-  const r = parseInt(value.slice(0, 2), 16) / 255
-  const g = parseInt(value.slice(2, 4), 16) / 255
-  const b = parseInt(value.slice(4, 6), 16) / 255
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+  if (value.length !== 6 || !/^[0-9a-fA-F]{6}$/.test(value)) return null
+  return [
+    parseInt(value.slice(0, 2), 16),
+    parseInt(value.slice(2, 4), 16),
+    parseInt(value.slice(4, 6), 16),
+  ]
+}
+
+/** WCAG relative luminance, which needs the sRGB gamma removed first. */
+function luminance([r, g, b]: Rgb): number {
+  const linear = (channel: number) => {
+    const v = channel / 255
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
+}
+
+function contrast(a: number, b: number): number {
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+}
+
+/** The two backdrops an icon can land on: the dark theme card, and paper. */
+const DARK_SURFACE = luminance([28, 28, 28])
+const LIGHT_SURFACE = luminance([255, 255, 255])
+
+/** Below this a colour is effectively invisible against the surface. */
+const MIN_CONTRAST = 1.6
+
+/**
+ * Colours are read from real paint declarations only — attributes, `style="…"`
+ * and `<style>` blocks all count, and so do gradient stops. Editor leftovers
+ * (Inkscape's `pagecolor`, `bordercolor`, metadata blocks) are not paint and
+ * would otherwise drag a bright icon into the "too dark" bucket.
+ */
+const PAINT =
+  /(?:fill|stroke|stop-color|flood-color|lighting-color)(?![\w-])\s*[:=]\s*["']?\s*(rgba?\([^)]*\)|#[0-9a-fA-F]{3,8}|[a-zA-Z]+)/g
+
+function paletteOf(svg: string): Rgb[] {
+  const painted = svg
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<metadata[\s\S]*?<\/metadata>/gi, "")
+    .replace(/<sodipodi:namedview[\s\S]*?(?:\/>|<\/sodipodi:namedview>)/gi, "")
+
+  const colors: Rgb[] = []
+  for (const [, value] of painted.matchAll(PAINT)) {
+    if (value.startsWith("#")) {
+      const rgb = parseHex(value)
+      if (rgb) colors.push(rgb)
+      continue
+    }
+    const fn = value.match(/rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/)
+    if (fn) {
+      colors.push([Number(fn[1]), Number(fn[2]), Number(fn[3])])
+      continue
+    }
+    const named = NAMED_COLORS[value.toLowerCase()]
+    if (named) colors.push(named)
+  }
+  return colors
 }
 
 /**
- * Monochrome art is anything that either paints with `currentColor` or whose
- * palette is entirely near-black or near-white — both disappear against one of
- * our themes unless we tint it ourselves.
+ * Art whose whole palette disappears against one of our surfaces is a
+ * silhouette, so it is masked and tinted with the theme colour. Anything with
+ * a colour that reads on both keeps its own palette — tinting a brand mark
+ * would throw the brand away.
  */
 function isMonochrome(svg: string): boolean {
   if (svg.includes("currentColor")) return true
 
-  const tones: number[] = []
-  for (const hex of svg.match(/#[0-9a-fA-F]{3,8}\b/g) ?? []) {
-    const tone = luminance(hex)
-    if (tone >= 0) tones.push(tone)
-  }
-  for (const [, name] of svg.matchAll(/(?:fill|stroke)="([a-zA-Z]+)"/g)) {
-    const tone = NAMED_COLORS[name.toLowerCase()]
-    if (tone !== undefined && tone >= 0) tones.push(tone)
-  }
-
+  const tones = paletteOf(svg).map(luminance)
+  // No declared colour means the SVG default fill, which is black.
   if (tones.length === 0) return true
-  return tones.every((tone) => tone < 0.25) || tones.every((tone) => tone > 0.85)
+
+  const vanishesOn = (surface: number) =>
+    tones.every((tone) => contrast(tone, surface) < MIN_CONTRAST)
+  return vanishesOn(DARK_SURFACE) || vanishesOn(LIGHT_SURFACE)
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
