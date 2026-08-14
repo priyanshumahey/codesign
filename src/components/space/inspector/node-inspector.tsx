@@ -5,10 +5,10 @@ import { useCanvasActions } from "../canvas-actions"
 import {
   BOUNDARY_COLORS,
   BOUNDARY_COLOR_STYLES,
-  GROUP_NODE_TYPE,
+  BOUNDARY_NODE_TYPE,
   NOTE_NODE_TYPE,
   resolveBoundaryColor,
-  type GroupNodeData,
+  type BoundaryNodeData,
   type NoteNodeData,
   type ServiceNodeData,
 } from "../types"
@@ -18,8 +18,8 @@ export function NodeInspector({ node }: { node: Node }) {
   const { patchNodeData } = useCanvasActions()
   const patch = (data: Record<string, unknown>) => patchNodeData(node.id, data)
 
-  if (node.type === GROUP_NODE_TYPE) {
-    const data = node.data as GroupNodeData
+  if (node.type === BOUNDARY_NODE_TYPE) {
+    const data = node.data as BoundaryNodeData
     const active = resolveBoundaryColor(data.color)
     return (
       <Section>
@@ -96,12 +96,6 @@ export function NodeInspector({ node }: { node: Node }) {
           value={data.label ?? ""}
           placeholder="API Gateway"
           onCommit={(label) => patch({ label })}
-        />
-        <TextField
-          label="Group"
-          value={data.group ?? ""}
-          placeholder="frontend / backend / data"
-          onCommit={(group) => patch({ group })}
         />
       </Section>
 

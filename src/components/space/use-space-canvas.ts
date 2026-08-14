@@ -13,20 +13,20 @@ import {
 import { computeAutoLayout } from "./auto-layout"
 import { peekPendingIconDrag, setPendingIconDrag } from "./drag-payload"
 import { retargetEdges } from "./edge-routing"
-import { absolutePosition, findGroupAt, nodeSize } from "./geometry"
+import { absolutePosition, findBoundaryAt, nodeSize } from "./geometry"
 import {
   BOUNDARY_COLORS,
-  CONTAINER_GROUP_ID,
+  CONTAINER_BOUNDARY_ID,
   CONTAINER_NOTE_ID,
-  GROUP_DEFAULT_SIZE,
-  GROUP_NODE_TYPE,
+  BOUNDARY_DEFAULT_SIZE,
+  BOUNDARY_NODE_TYPE,
   ICON_DRAG_MIME,
   NOTE_DEFAULT_SIZE,
   NOTE_NODE_TYPE,
   SERVICE_NODE_SIZE,
   SERVICE_NODE_TYPE,
   type EdgeDirection,
-  type GroupNodeData,
+  type BoundaryNodeData,
   type IconEntry,
   type NoteNodeData,
   type ServiceNodeData,
@@ -54,7 +54,7 @@ export function useSpaceCanvas(initial: Snapshot) {
   const future = useRef<Snapshot[]>([])
   // Continue the palette rather than restarting at the first colour on reopen.
   const colorCursor = useRef(
-    initial.nodes.filter((node) => node.type === GROUP_NODE_TYPE).length
+    initial.nodes.filter((node) => node.type === BOUNDARY_NODE_TYPE).length
   )
 
   const snapshot = useCallback(() => {
@@ -84,25 +84,25 @@ export function useSpaceCanvas(initial: Snapshot) {
       snapshot()
       const current = nodesRef.current
 
-      if (entry.id === CONTAINER_GROUP_ID) {
+      if (entry.id === CONTAINER_BOUNDARY_ID) {
         const color = BOUNDARY_COLORS[colorCursor.current++ % BOUNDARY_COLORS.length]
         const node: Node = {
-          id: nextId("group"),
-          type: GROUP_NODE_TYPE,
+          id: nextId("boundary"),
+          type: BOUNDARY_NODE_TYPE,
           position: {
-            x: position.x - GROUP_DEFAULT_SIZE.width / 2,
-            y: position.y - GROUP_DEFAULT_SIZE.height / 2,
+            x: position.x - BOUNDARY_DEFAULT_SIZE.width / 2,
+            y: position.y - BOUNDARY_DEFAULT_SIZE.height / 2,
           },
-          width: GROUP_DEFAULT_SIZE.width,
-          height: GROUP_DEFAULT_SIZE.height,
-          data: { label: "Boundary", color } satisfies GroupNodeData,
+          width: BOUNDARY_DEFAULT_SIZE.width,
+          height: BOUNDARY_DEFAULT_SIZE.height,
+          data: { label: "Boundary", color } satisfies BoundaryNodeData,
         }
         setNodes((list) => [...list, node])
         return
       }
 
       const isNote = entry.id === CONTAINER_NOTE_ID
-      const parent = findGroupAt(current, position)
+      const parent = findBoundaryAt(current, position)
       const origin = parent ? absolutePosition(parent, current) : { x: 0, y: 0 }
       const size = isNote ? NOTE_DEFAULT_SIZE : SERVICE_NODE_SIZE
       const local = {
@@ -204,7 +204,7 @@ export function useSpaceCanvas(initial: Snapshot) {
   /** Adopt or release a boundary based on where the node was dropped. */
   const onNodeDragStop = useCallback(
     (_event: MouseEvent | TouchEvent, dragged: Node) => {
-      if (dragged.type === GROUP_NODE_TYPE) return
+      if (dragged.type === BOUNDARY_NODE_TYPE) return
       const current = nodesRef.current
       const node = current.find((candidate) => candidate.id === dragged.id)
       if (!node) return
@@ -212,19 +212,19 @@ export function useSpaceCanvas(initial: Snapshot) {
       const origin = absolutePosition(node, current)
       const size = nodeSize(node)
       const center = { x: origin.x + size.width / 2, y: origin.y + size.height / 2 }
-      const group = findGroupAt(current, center, node.id)
+      const boundary = findBoundaryAt(current, center, node.id)
 
-      if (group?.id === node.parentId) return
+      if (boundary?.id === node.parentId) return
 
       setNodes((list) =>
         list.map((candidate) => {
           if (candidate.id !== node.id) return candidate
           const { parentId: _parentId, extent: _extent, ...rest } = candidate
-          if (!group) return { ...rest, position: origin }
-          const groupOrigin = absolutePosition(group, list)
+          if (!boundary) return { ...rest, position: origin }
+          const groupOrigin = absolutePosition(boundary, list)
           return {
             ...rest,
-            parentId: group.id,
+            parentId: boundary.id,
             extent: "parent" as const,
             position: { x: origin.x - groupOrigin.x, y: origin.y - groupOrigin.y },
           }

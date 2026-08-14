@@ -17,7 +17,7 @@ import { CanvasToolbar } from "./canvas-toolbar"
 import { fromDocument, toDocument } from "./document"
 import { EdgeContextMenu, type EdgeMenuTarget } from "./edge-context-menu"
 import { DEFAULT_EDGE_OPTIONS, EDGE_TYPES, NODE_TYPES } from "./flow-config"
-import { sortByGroupParenting } from "./geometry"
+import { sortByBoundaryParenting } from "./geometry"
 import { Inspector } from "./inspector/inspector"
 import { resolveEdgeDirection, type IconEntry } from "./types"
 import { useCanvasShortcuts } from "./use-canvas-shortcuts"
@@ -97,7 +97,7 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
     ]
   )
 
-  const nodes = useMemo(() => sortByGroupParenting(canvas.nodes), [canvas.nodes])
+  const nodes = useMemo(() => sortByBoundaryParenting(canvas.nodes), [canvas.nodes])
 
   // The inspector only makes sense for a single target.
   const inspectedNode =

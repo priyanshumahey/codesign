@@ -7,11 +7,11 @@ import { NodeHandles } from "../handles"
 import {
   BOUNDARY_COLOR_STYLES,
   resolveBoundaryColor,
-  type GroupNodeData,
+  type BoundaryNodeData,
 } from "../types"
 import { useInlineEdit } from "../use-inline-edit"
 
-function GroupNodeBase({ id, data, selected }: NodeProps & { data: GroupNodeData }) {
+function BoundaryNodeBase({ id, data, selected }: NodeProps & { data: BoundaryNodeData }) {
   const label = data.label ?? "Boundary"
   const styles = BOUNDARY_COLOR_STYLES[resolveBoundaryColor(data.color)]
   const { patchNodeData, checkpoint } = useCanvasActions()
@@ -73,4 +73,4 @@ function GroupNodeBase({ id, data, selected }: NodeProps & { data: GroupNodeData
   )
 }
 
-export const GroupNode = memo(GroupNodeBase)
+export const BoundaryNode = memo(BoundaryNodeBase)

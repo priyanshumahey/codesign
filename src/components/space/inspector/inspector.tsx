@@ -4,9 +4,9 @@ import type { Edge, Node } from "@xyflow/react"
 import { cn } from "@/lib/utils"
 import { IconGraphic } from "../icon-graphic"
 import {
-  GROUP_NODE_TYPE,
+  BOUNDARY_NODE_TYPE,
   NOTE_NODE_TYPE,
-  type GroupNodeData,
+  type BoundaryNodeData,
   type NoteNodeData,
   type ServiceNodeData,
 } from "../types"
@@ -31,8 +31,8 @@ function summarise(node: Node | null, edge: Edge | null, nodes: Node[]): Summary
 
   if (!node) return { kind: "", title: "" }
 
-  if (node.type === GROUP_NODE_TYPE) {
-    const data = node.data as GroupNodeData
+  if (node.type === BOUNDARY_NODE_TYPE) {
+    const data = node.data as BoundaryNodeData
     return { kind: "Boundary", title: data.label || "Untitled boundary" }
   }
   if (node.type === NOTE_NODE_TYPE) {

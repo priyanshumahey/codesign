@@ -1,11 +1,11 @@
 import { MarkerType, type DefaultEdgeOptions } from "@xyflow/react"
 
 import { SystemEdge } from "./edges/system-edge"
-import { GroupNode } from "./nodes/group-node"
+import { BoundaryNode } from "./nodes/boundary-node"
 import { NoteNode } from "./nodes/note-node"
 import { ServiceNode } from "./nodes/service-node"
 import {
-  GROUP_NODE_TYPE,
+  BOUNDARY_NODE_TYPE,
   NOTE_NODE_TYPE,
   SERVICE_NODE_TYPE,
   SYSTEM_EDGE_TYPE,
@@ -13,7 +13,7 @@ import {
 
 export const NODE_TYPES = {
   [SERVICE_NODE_TYPE]: ServiceNode,
-  [GROUP_NODE_TYPE]: GroupNode,
+  [BOUNDARY_NODE_TYPE]: BoundaryNode,
   [NOTE_NODE_TYPE]: NoteNode,
 }
 

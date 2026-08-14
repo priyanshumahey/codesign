@@ -14,7 +14,7 @@ import { setPendingIconDrag } from "./drag-payload"
 import { IconGraphic } from "./icon-graphic"
 import { loadIconManifest } from "./icon-manifest"
 import {
-  CONTAINER_GROUP_ID,
+  CONTAINER_BOUNDARY_ID,
   CONTAINER_NOTE_ID,
   ICON_DRAG_MIME,
   type IconEntry,
@@ -195,7 +195,7 @@ function useResizableWidth() {
 
 const CONTAINERS: { entry: IconEntry; preview: React.ReactNode }[] = [
   {
-    entry: { id: CONTAINER_GROUP_ID, name: "Boundary", path: "", category: "generic" },
+    entry: { id: CONTAINER_BOUNDARY_ID, name: "Boundary", path: "", category: "generic" },
     preview: <span className="size-5 rounded-md border-2 border-dashed border-slate-500/55" />,
   },
   {

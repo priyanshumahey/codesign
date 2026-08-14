@@ -1,7 +1,7 @@
 /** Shared vocabulary for the design canvas. Keep node data JSON-serializable. */
 
 export const SERVICE_NODE_TYPE = "service"
-export const GROUP_NODE_TYPE = "boundary"
+export const BOUNDARY_NODE_TYPE = "boundary"
 export const NOTE_NODE_TYPE = "note"
 export const SYSTEM_EDGE_TYPE = "system"
 
@@ -9,7 +9,7 @@ export const SYSTEM_EDGE_TYPE = "system"
 export const ICON_DRAG_MIME = "application/x-codesign-icon"
 
 /** Synthetic ids so container tiles can share the icon drag payload. */
-export const CONTAINER_GROUP_ID = "__container__:group"
+export const CONTAINER_BOUNDARY_ID = "__container__:boundary"
 export const CONTAINER_NOTE_ID = "__container__:note"
 
 export type IconEntry = {
@@ -32,7 +32,7 @@ export type IconManifest = {
 }
 
 export const SERVICE_NODE_SIZE = { width: 112, height: 96 } as const
-export const GROUP_DEFAULT_SIZE = { width: 340, height: 240 } as const
+export const BOUNDARY_DEFAULT_SIZE = { width: 340, height: 240 } as const
 export const NOTE_DEFAULT_SIZE = { width: 200, height: 44 } as const
 
 export type ServiceNodeData = {
@@ -42,11 +42,10 @@ export type ServiceNodeData = {
   iconMono?: boolean
   label: string
   description?: string
-  group?: string
   [key: string]: unknown
 }
 
-export type GroupNodeData = {
+export type BoundaryNodeData = {
   label: string
   color?: BoundaryColor
   [key: string]: unknown
