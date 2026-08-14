@@ -1,5 +1,12 @@
 import { CaretRight, MagnifyingGlass } from "@phosphor-icons/react"
-import { useDeferredValue, useEffect, useMemo, useState, type DragEvent } from "react"
+import {
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+} from "react"
 
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -73,7 +80,7 @@ function Tile({
       onDragEnd={() => setPendingIconDrag(null)}
       onDoubleClick={() => onAdd(entry)}
       title={entry.name}
-      className="group/tile flex cursor-grab flex-col items-center gap-1.5 rounded-lg border border-transparent px-1 py-2 transition-colors hover:border-border/70 hover:bg-muted/60 active:cursor-grabbing"
+      className="group/tile flex min-w-0 cursor-grab flex-col items-center gap-1.5 rounded-lg border border-transparent px-1 py-2 transition-colors hover:border-border/70 hover:bg-muted/60 active:cursor-grabbing"
     >
       <span className="grid size-8 place-items-center transition-transform duration-150 group-hover/tile:scale-110">
         {preview}
@@ -87,10 +94,109 @@ function Tile({
 
 const CONTAINERS_SECTION = "__containers__"
 
+/** Tiles reflow with the palette instead of stretching at a fixed column count. */
+const TILE_GRID = "grid grid-cols-[repeat(auto-fill,minmax(58px,1fr))] gap-1"
+
+const WIDTH_KEY = "codesign:palette-width"
+const MIN_WIDTH = 196
+const MAX_WIDTH = 560
+const DEFAULT_WIDTH = 240
+
+function clampWidth(value: number) {
+  return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(value)))
+}
+
+/** Held on `<body>` so the cursor survives leaving the thin handle mid-drag. */
+function setDragCursor(active: boolean) {
+  document.body.style.cursor = active ? "col-resize" : ""
+  document.body.style.userSelect = active ? "none" : ""
+}
+
+function useResizableWidth() {
+  const [width, setWidth] = useState(() => {
+    const stored = Number(localStorage.getItem(WIDTH_KEY))
+    return Number.isFinite(stored) && stored > 0 ? clampWidth(stored) : DEFAULT_WIDTH
+  })
+  const [dragging, setDragging] = useState(false)
+  const asideRef = useRef<HTMLElement>(null)
+  // Mirrors the in-progress drag so a re-render mid-drag keeps the live width.
+  const liveWidth = useRef(width)
+
+  useEffect(() => () => setDragCursor(false), [])
+
+  const commit = (next: number) => {
+    const value = clampWidth(next)
+    liveWidth.current = value
+    if (asideRef.current) asideRef.current.style.width = `${value}px`
+    setWidth(value)
+    localStorage.setItem(WIDTH_KEY, String(value))
+  }
+
+  // The palette renders hundreds of tiles, so the drag writes straight to the
+  // element and only commits to state once the pointer is released.
+  const apply = (event: React.PointerEvent<HTMLDivElement>) => {
+    const aside = asideRef.current
+    if (!aside) return liveWidth.current
+    const next = clampWidth(event.clientX - aside.getBoundingClientRect().left)
+    aside.style.width = `${next}px`
+    liveWidth.current = next
+    return next
+  }
+
+  const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setDragCursor(true)
+    setDragging(true)
+  }
+
+  const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (dragging) apply(event)
+  }
+
+  const stop = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging) return
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    setDragCursor(false)
+    setDragging(false)
+    commit(apply(event))
+  }
+
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = event.shiftKey ? 48 : 16
+    const next =
+      event.key === "ArrowLeft"
+        ? liveWidth.current - step
+        : event.key === "ArrowRight"
+          ? liveWidth.current + step
+          : event.key === "Home"
+            ? MIN_WIDTH
+            : event.key === "End"
+              ? MAX_WIDTH
+              : null
+    if (next === null) return
+    event.preventDefault()
+    commit(next)
+  }
+
+  return {
+    width: dragging ? liveWidth.current : width,
+    dragging,
+    asideRef,
+    onPointerDown,
+    onPointerMove,
+    stop,
+    reset: () => commit(DEFAULT_WIDTH),
+    onKeyDown,
+  }
+}
+
 const CONTAINERS: { entry: IconEntry; preview: React.ReactNode }[] = [
   {
     entry: { id: CONTAINER_GROUP_ID, name: "Boundary", path: "", category: "generic" },
-    preview: <span className="size-5 rounded-md border-2 border-dashed border-foreground/45" />,
+    preview: <span className="size-5 rounded-md border-2 border-dashed border-slate-500/55" />,
   },
   {
     entry: { id: CONTAINER_NOTE_ID, name: "Note", path: "", category: "generic" },
@@ -143,9 +249,34 @@ export function CanvasPalette({ onAdd }: { onAdd: (entry: IconEntry) => void }) 
   }, [manifest, deferredQuery])
 
   const hasResults = filtered && Object.keys(filtered).length > 0
+  const resize = useResizableWidth()
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-border/60">
+    <aside
+      ref={resize.asideRef}
+      style={{ width: resize.width }}
+      className="relative flex shrink-0 flex-col border-r border-border/60"
+    >
+      <div
+        role="separator"
+        tabIndex={0}
+        aria-orientation="vertical"
+        aria-label="Resize palette"
+        aria-valuemin={MIN_WIDTH}
+        aria-valuemax={MAX_WIDTH}
+        aria-valuenow={resize.width}
+        onPointerDown={resize.onPointerDown}
+        onPointerMove={resize.onPointerMove}
+        onPointerUp={resize.stop}
+        onPointerCancel={resize.stop}
+        onKeyDown={resize.onKeyDown}
+        onDoubleClick={resize.reset}
+        className={cn(
+          "absolute -right-1.5 top-0 z-20 h-full w-3 cursor-col-resize touch-none",
+          "outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent after:transition-colors hover:after:bg-foreground/30 focus-visible:after:bg-ring",
+          resize.dragging && "after:bg-foreground/40"
+        )}
+      />
       <div className="border-b border-border/60 p-2.5">
         <div className="relative">
           <MagnifyingGlass className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -171,7 +302,7 @@ export function CanvasPalette({ onAdd }: { onAdd: (entry: IconEntry) => void }) 
               }))
             }
           >
-            <div className="grid grid-cols-3 gap-1">
+            <div className={TILE_GRID}>
               {CONTAINERS.map(({ entry, preview }) => (
                 <Tile key={entry.id} entry={entry} preview={preview} onAdd={onAdd} />
               ))}
@@ -206,7 +337,7 @@ export function CanvasPalette({ onAdd }: { onAdd: (entry: IconEntry) => void }) 
                   setOpen((prev) => ({ ...prev, [category.id]: !prev[category.id] }))
                 }
               >
-                <div className="grid grid-cols-3 gap-1">
+                <div className={TILE_GRID}>
                   {list.map((entry) => (
                     <Tile
                       key={entry.id}
@@ -216,7 +347,7 @@ export function CanvasPalette({ onAdd }: { onAdd: (entry: IconEntry) => void }) 
                         <IconGraphic
                           path={entry.path}
                           mono={entry.mono}
-                          className="size-7 text-foreground/80"
+                          className="size-7"
                         />
                       }
                     />
