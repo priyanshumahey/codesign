@@ -8,17 +8,19 @@ type Options = {
   onDelete: () => void
   onSave: () => void
   onEscape: () => void
+  onTogglePalette: () => void
   /** A printable key pressed with nothing focused, used to start typing a label. */
   onType: (key: string) => void
 }
 
-function isTypingTarget(target: EventTarget | null): boolean {
+function isInteractiveTarget(target: EventTarget | null): boolean {
   const element = target as HTMLElement | null
   return Boolean(
     element &&
-      (element.tagName === "INPUT" ||
-        element.tagName === "TEXTAREA" ||
-        element.isContentEditable)
+      (element.isContentEditable ||
+        element.closest(
+          "input, textarea, select, button, a, [role='menuitem'], [role='option']"
+        ))
   )
 }
 
@@ -30,6 +32,7 @@ export function useCanvasShortcuts({
   onDelete,
   onSave,
   onEscape,
+  onTogglePalette,
   onType,
 }: Options) {
   useEffect(() => {
@@ -47,7 +50,7 @@ export function useCanvasShortcuts({
         onSave()
         return
       }
-      if (isTypingTarget(event.target)) return
+      if (isInteractiveTarget(event.target)) return
 
       if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault()
@@ -83,10 +86,24 @@ export function useCanvasShortcuts({
           event.preventDefault()
           onSelectAll()
           break
+        case "b":
+          event.preventDefault()
+          onTogglePalette()
+          break
       }
     }
 
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
-  }, [onUndo, onRedo, onDuplicate, onSelectAll, onDelete, onSave, onEscape, onType])
+  }, [
+    onUndo,
+    onRedo,
+    onDuplicate,
+    onSelectAll,
+    onDelete,
+    onSave,
+    onEscape,
+    onTogglePalette,
+    onType,
+  ])
 }

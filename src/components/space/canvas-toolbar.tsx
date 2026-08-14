@@ -5,7 +5,9 @@ import {
   GraphIcon,
   Minus,
   Plus,
+  Shapes,
   SidebarSimple,
+  Sparkle,
 } from "@phosphor-icons/react"
 import { useReactFlow } from "@xyflow/react"
 
@@ -45,14 +47,22 @@ export function CanvasToolbar({
   onUndo,
   onRedo,
   onAutoLayout,
+  paletteOpen,
+  onTogglePalette,
   detailsOpen,
   onToggleDetails,
+  copilotOpen,
+  onToggleCopilot,
 }: {
   onUndo: () => void
   onRedo: () => void
   onAutoLayout: () => void
+  paletteOpen: boolean
+  onTogglePalette: () => void
   detailsOpen: boolean
   onToggleDetails: () => void
+  copilotOpen: boolean
+  onToggleCopilot: () => void
 }) {
   const { zoomIn, zoomOut, fitView } = useReactFlow()
 
@@ -67,6 +77,13 @@ export function CanvasToolbar({
 
       <span className="mx-0.5 h-4 w-px bg-border" aria-hidden />
 
+      <ToolbarButton
+        label="Component palette (⌘B)"
+        active={paletteOpen}
+        onClick={onTogglePalette}
+      >
+        <Shapes className="size-3.5" weight={paletteOpen ? "fill" : "regular"} />
+      </ToolbarButton>
       <ToolbarButton label="Tidy layout" onClick={onAutoLayout}>
         <GraphIcon className="size-3.5" />
       </ToolbarButton>
@@ -76,6 +93,9 @@ export function CanvasToolbar({
         onClick={onToggleDetails}
       >
         <SidebarSimple className="size-3.5" />
+      </ToolbarButton>
+      <ToolbarButton label="Copilot" active={copilotOpen} onClick={onToggleCopilot}>
+        <Sparkle className="size-3.5" weight={copilotOpen ? "fill" : "regular"} />
       </ToolbarButton>
 
       <span className="mx-0.5 h-4 w-px bg-border" aria-hidden />

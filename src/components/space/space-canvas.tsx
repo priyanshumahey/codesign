@@ -5,8 +5,9 @@ import {
   Panel,
   ReactFlow,
   ReactFlowProvider,
+  useReactFlow,
 } from "@xyflow/react"
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import "@xyflow/react/dist/base.css"
 
 import type { SpaceFile } from "@/lib/spaces"
@@ -14,6 +15,8 @@ import { cn } from "@/lib/utils"
 import { CanvasActionsProvider, type EdgeLabelEdit } from "./canvas-actions"
 import { CanvasPalette } from "./canvas-palette"
 import { CanvasToolbar } from "./canvas-toolbar"
+import { CopilotPanel } from "./copilot/copilot-panel"
+import { useCopilot } from "./copilot/use-copilot"
 import { fromDocument, toDocument } from "./document"
 import { EdgeContextMenu, type EdgeMenuTarget } from "./edge-context-menu"
 import { DEFAULT_EDGE_OPTIONS, EDGE_TYPES, NODE_TYPES } from "./flow-config"
@@ -24,6 +27,8 @@ import { useCanvasShortcuts } from "./use-canvas-shortcuts"
 import { useSpaceCanvas } from "./use-space-canvas"
 import { useSpacePersistence } from "./use-space-persistence"
 
+const PALETTE_KEY = "codesign.palette.open"
+
 function SpaceCanvasInner({ space }: { space: SpaceFile }) {
   // Read once — the file is the source of truth only at open time.
   const [initial] = useState(() => fromDocument(space.document))
@@ -33,12 +38,32 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
 
   const canvas = useSpaceCanvas(initial)
   const paneRef = useRef<HTMLDivElement>(null)
+  const { fitView } = useReactFlow()
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [copilotOpen, setCopilotOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(
+    () => localStorage.getItem(PALETTE_KEY) !== "false"
+  )
   const [edgeMenu, setEdgeMenu] = useState<EdgeMenuTarget | null>(null)
   const [edgeEdit, setEdgeEdit] = useState<EdgeLabelEdit | null>(null)
 
   const canvasRef = useRef(canvas)
   canvasRef.current = canvas
+
+  const copilot = useCopilot({
+    spaceId: space.id,
+    getDocument: () => toDocument(canvasRef.current.nodes, canvasRef.current.edges),
+    getSelection: () =>
+      canvasRef.current.nodes.filter((node) => node.selected).map((node) => node.id),
+    onDocument: (document) => canvasRef.current.setDocument(document),
+    onTurnStart: () => canvasRef.current.checkpoint(),
+    onTurnEnd: ({ builtFromScratch }) => {
+      // Only reframe when the canvas was empty; otherwise the user's view is theirs.
+      if (builtFromScratch) {
+        setTimeout(() => fitView({ padding: 0.25, duration: 400 }), 60)
+      }
+    },
+  })
 
   const persistence = useSpacePersistence({
     path: space.path,
@@ -52,6 +77,10 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
       canvasRef.current.setDocument(document)
     },
   })
+
+  useEffect(() => {
+    localStorage.setItem(PALETTE_KEY, String(paletteOpen))
+  }, [paletteOpen])
 
   const startEdgeLabelEdit = useCallback((id: string, seed = "") => {
     setEdgeMenu(null)
@@ -76,6 +105,7 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
     onSelectAll: canvas.selectAll,
     onDelete: canvas.deleteSelection,
     onSave: () => void persistence.flush(),
+    onTogglePalette: () => setPaletteOpen((open) => !open),
     onType: (key) => {
       if (edgeMenu || editingEdge || !soleSelectedEdge) return
       startEdgeLabelEdit(soleSelectedEdge.id, key)
@@ -126,7 +156,7 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
   return (
     <CanvasActionsProvider value={actions}>
       <div className="flex min-h-0 flex-1">
-        <CanvasPalette onAdd={addToCentre} />
+        {paletteOpen && <CanvasPalette onAdd={addToCentre} />}
 
         <div
           ref={paneRef}
@@ -193,8 +223,12 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
                 onUndo={canvas.undo}
                 onRedo={canvas.redo}
                 onAutoLayout={canvas.runAutoLayout}
+                paletteOpen={paletteOpen}
+                onTogglePalette={() => setPaletteOpen((open) => !open)}
                 detailsOpen={detailsOpen}
                 onToggleDetails={() => setDetailsOpen((open) => !open)}
+                copilotOpen={copilotOpen}
+                onToggleCopilot={() => setCopilotOpen((open) => !open)}
               />
             </Panel>
 
@@ -248,14 +282,41 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
               <div className="flex max-w-xs flex-col items-center gap-1.5 rounded-2xl border border-dashed border-border bg-background/70 px-6 py-5 text-center backdrop-blur-sm">
                 <p className="text-[13px] font-medium">Drop your first component</p>
                 <p className="text-[12px] leading-relaxed text-muted-foreground">
-                  Drag an icon from the left, or double-click one. Connect two nodes by
-                  pulling from the dots on their edges, then right-click anything to edit
-                  its details.
+                  {paletteOpen ? (
+                    <>
+                      Drag an icon from the left, or double-click one. Connect two nodes
+                      by pulling from the dots on their edges, then right-click anything
+                      to edit its details.
+                    </>
+                  ) : (
+                    <>
+                      Open the palette with ⌘B to add components, or ask the copilot to
+                      sketch something for you.
+                    </>
+                  )}
                 </p>
               </div>
             </div>
           )}
         </div>
+
+        {copilotOpen && (
+          <CopilotPanel
+            messages={copilot.messages}
+            busy={copilot.busy}
+            status={copilot.status}
+            models={copilot.models}
+            conversations={copilot.conversations}
+            conversationId={copilot.conversationId}
+            onSend={copilot.send}
+            onUndo={canvas.undo}
+            onModelChange={copilot.setModel}
+            onNewConversation={copilot.newConversation}
+            onOpenConversation={copilot.openConversation}
+            onDeleteConversation={copilot.deleteConversation}
+            onClose={() => setCopilotOpen(false)}
+          />
+        )}
       </div>
     </CanvasActionsProvider>
   )

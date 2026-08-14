@@ -1,3 +1,4 @@
+pub mod ai;
 mod mcp_link;
 mod ops;
 pub mod spaces;
@@ -8,6 +9,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(ops::OpsState::default())
+        .manage(ai::AiState::default())
         .invoke_handler(tauri::generate_handler![
             spaces::list_recents,
             spaces::create_space,
@@ -26,6 +28,13 @@ pub fn run() {
             ops::load_icon_manifest,
             ops::search_icons,
             ops::summarize_document,
+            ai::ai_status,
+            ai::ai_set_config,
+            ai::ai_models,
+            ai::ai_conversations,
+            ai::ai_conversation,
+            ai::ai_delete_conversation,
+            ai::ai_send,
             mcp_link::mcp_config,
         ])
         .run(tauri::generate_context!())
