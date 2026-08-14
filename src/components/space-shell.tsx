@@ -2,6 +2,7 @@ import { ArrowLeft, FolderOpen } from "@phosphor-icons/react"
 import { useState } from "react"
 
 import { SpaceCanvas } from "@/components/space/space-canvas"
+import { ConnectAgentButton } from "@/components/space/connect-agent"
 import { useInlineEdit } from "@/components/space/use-inline-edit"
 import { Button } from "@/components/ui/button"
 import {
@@ -76,15 +77,18 @@ export function SpaceShell({
               {error ?? space.path}
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            title="Reveal in Finder"
-            onClick={() => void revealInFileManager(space.path)}
-            className="ml-auto text-muted-foreground hover:text-foreground"
-          >
-            <FolderOpen />
-          </Button>
+          <div className="ml-auto flex items-center gap-1">
+            <ConnectAgentButton space={space} />
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              title="Reveal in Finder"
+              onClick={() => void revealInFileManager(space.path)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <FolderOpen />
+            </Button>
+          </div>
         </header>
 
         <SpaceCanvas key={space.id} space={space} />

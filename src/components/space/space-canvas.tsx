@@ -37,11 +37,20 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
   const [edgeMenu, setEdgeMenu] = useState<EdgeMenuTarget | null>(null)
   const [edgeEdit, setEdgeEdit] = useState<EdgeLabelEdit | null>(null)
 
+  const canvasRef = useRef(canvas)
+  canvasRef.current = canvas
+
   const persistence = useSpacePersistence({
     path: space.path,
+    updatedAt: space.updatedAt,
     nodes: canvas.nodes,
     edges: canvas.edges,
     baseline,
+    onExternalChange: (document) => {
+      // Someone edited the file underneath us; keep it undoable.
+      canvasRef.current.checkpoint()
+      canvasRef.current.setDocument(document)
+    },
   })
 
   const startEdgeLabelEdit = useCallback((id: string, seed = "") => {

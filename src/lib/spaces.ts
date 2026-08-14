@@ -43,6 +43,10 @@ export const openSpace = (path: string) => invoke<SpaceFile>("open_space", { pat
 export const saveSpace = (path: string, document: SpaceDocument) =>
   invoke<number>("save_space", { path, document })
 
+/** Resolves with the space only if it changed on disk since `knownUpdatedAt`. */
+export const pollSpace = (path: string, knownUpdatedAt: number) =>
+  invoke<SpaceFile | null>("poll_space", { path, knownUpdatedAt })
+
 export const renameSpace = (path: string, name: string) =>
   invoke<SpaceFile>("rename_space", { path, name })
 

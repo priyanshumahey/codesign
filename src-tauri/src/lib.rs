@@ -1,5 +1,6 @@
+mod mcp_link;
 mod ops;
-mod spaces;
+pub mod spaces;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -12,6 +13,7 @@ pub fn run() {
             spaces::create_space,
             spaces::open_space,
             spaces::save_space,
+            spaces::poll_space,
             spaces::rename_space,
             spaces::delete_space,
             spaces::forget_recent,
@@ -24,6 +26,7 @@ pub fn run() {
             ops::load_icon_manifest,
             ops::search_icons,
             ops::summarize_document,
+            mcp_link::mcp_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -224,7 +224,12 @@ fn write_space_file(path: &Path, space: &SpaceFile) -> Result<(), String> {
         document: &space.document,
     })
     .map_err(|e| e.to_string())?;
-    fs::write(path, json).map_err(|e| format!("could not write space: {e}"))
+    let temporary = path.with_extension(format!("{SPACE_EXTENSION}.{}.tmp", uuid::Uuid::new_v4()));
+    fs::write(&temporary, json).map_err(|e| format!("could not write space: {e}"))?;
+    fs::rename(&temporary, path).map_err(|e| {
+        let _ = fs::remove_file(&temporary);
+        format!("could not save space: {e}")
+    })
 }
 
 #[tauri::command]
@@ -252,7 +257,11 @@ pub fn list_recents(app: AppHandle) -> Vec<RecentItem> {
 }
 
 #[tauri::command]
-pub fn create_space(app: AppHandle, path: String, name: Option<String>) -> Result<SpaceFile, String> {
+pub fn create_space(
+    app: AppHandle,
+    path: String,
+    name: Option<String>,
+) -> Result<SpaceFile, String> {
     // The save dialog already confirmed any overwrite, so honour the chosen path.
     let target = with_space_extension(Path::new(&path));
     let display = name
@@ -296,9 +305,21 @@ pub fn save_space(path: String, document: SpaceDocument) -> Result<i64, String> 
     }
     let mut space = read_space_file(&target)?;
     space.document = document;
-    space.updated_at = now_ms();
+    space.updated_at = codesign_core::store::next_updated_at(space.updated_at);
     write_space_file(&target, &space)?;
     Ok(space.updated_at)
+}
+
+/// Returns the space only when it changed on disk since `known_updated_at` —
+/// how the app notices edits made by the MCP server while it is open.
+#[tauri::command]
+pub fn poll_space(path: String, known_updated_at: i64) -> Result<Option<SpaceFile>, String> {
+    let target = PathBuf::from(&path);
+    if !target.exists() {
+        return Ok(None);
+    }
+    let space = read_space_file(&target)?;
+    Ok((space.updated_at != known_updated_at).then_some(space))
 }
 
 #[tauri::command]
@@ -311,11 +332,13 @@ pub fn rename_space(app: AppHandle, path: String, name: String) -> Result<SpaceF
     let display = sanitize_file_stem(&name);
     let mut space = read_space_file(&source)?;
     space.name = display.clone();
-    space.updated_at = now_ms();
+    space.updated_at = codesign_core::store::next_updated_at(space.updated_at);
 
     let desired = source.with_file_name(format!("{display}.{SPACE_EXTENSION}"));
     if desired != source && desired.exists() {
-        return Err(format!("A space named \"{display}\" already exists in this folder."));
+        return Err(format!(
+            "A space named \"{display}\" already exists in this folder."
+        ));
     }
 
     write_space_file(&source, &space)?;
@@ -401,7 +424,7 @@ pub fn list_folder_spaces(path: String) -> Result<Vec<SpaceSummary>, String> {
         })
         .collect();
 
-    spaces.sort_by(|a, b| b.modified.cmp(&a.modified));
+    spaces.sort_by_key(|space| std::cmp::Reverse(space.modified));
     Ok(spaces)
 }
 
@@ -451,7 +474,10 @@ mod tests {
         let path = temp_space("path");
         seed(&path);
         let raw = fs::read_to_string(&path).unwrap();
-        assert!(!raw.contains("\"path\""), "space file leaked its location: {raw}");
+        assert!(
+            !raw.contains("\"path\""),
+            "space file leaked its location: {raw}"
+        );
     }
 
     #[test]
@@ -482,4 +508,3 @@ mod tests {
         assert!(save_space(path.to_string_lossy().to_string(), SpaceDocument::default()).is_err());
     }
 }
-
