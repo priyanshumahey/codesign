@@ -72,9 +72,22 @@ pub struct SpaceFile {
     pub updated_at: i64,
     #[serde(default)]
     pub document: SpaceDocument,
-    /// Absolute path on disk. Never persisted — the file's location is the truth.
+    /// Absolute path on disk. Sent to the UI but never written to the file —
+    /// the file's location is the truth.
     #[serde(skip_deserializing)]
     pub path: String,
+}
+
+/// On-disk projection of [`SpaceFile`] without the machine-specific `path`.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SpaceOnDisk<'a> {
+    version: u32,
+    id: &'a str,
+    name: &'a str,
+    created_at: i64,
+    updated_at: i64,
+    document: &'a SpaceDocument,
 }
 
 fn now_ms() -> i64 {
@@ -202,7 +215,15 @@ fn write_space_file(path: &Path, space: &SpaceFile) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| format!("could not create folder: {e}"))?;
     }
-    let json = serde_json::to_string_pretty(space).map_err(|e| e.to_string())?;
+    let json = serde_json::to_string_pretty(&SpaceOnDisk {
+        version: space.version,
+        id: &space.id,
+        name: &space.name,
+        created_at: space.created_at,
+        updated_at: space.updated_at,
+        document: &space.document,
+    })
+    .map_err(|e| e.to_string())?;
     fs::write(path, json).map_err(|e| format!("could not write space: {e}"))
 }
 
@@ -263,6 +284,21 @@ pub fn open_space(app: AppHandle, path: String) -> Result<SpaceFile, String> {
     let space = read_space_file(&target)?;
     touch_recent(&app, &target, EntryKind::File, Some(space.name.clone()));
     Ok(space)
+}
+
+/// Writes the canvas document back to an existing space, leaving identity
+/// fields (id, name, createdAt) as they are on disk.
+#[tauri::command]
+pub fn save_space(path: String, document: SpaceDocument) -> Result<i64, String> {
+    let target = PathBuf::from(&path);
+    if !target.exists() {
+        return Err("That space no longer exists at this location.".into());
+    }
+    let mut space = read_space_file(&target)?;
+    space.document = document;
+    space.updated_at = now_ms();
+    write_space_file(&target, &space)?;
+    Ok(space.updated_at)
 }
 
 #[tauri::command]
@@ -385,3 +421,65 @@ pub fn default_space_dir(app: AppHandle) -> Result<String, String> {
     fs::create_dir_all(&dir).map_err(|e| format!("could not create folder: {e}"))?;
     Ok(dir.to_string_lossy().to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_space(label: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("codesign-test-{label}-{}", now_ms()));
+        fs::create_dir_all(&dir).unwrap();
+        dir.join(format!("Test.{SPACE_EXTENSION}"))
+    }
+
+    fn seed(path: &Path) -> SpaceFile {
+        let space = SpaceFile {
+            version: SPACE_VERSION,
+            id: "space-id".into(),
+            name: "Test".into(),
+            created_at: 1_000,
+            updated_at: 1_000,
+            document: SpaceDocument::default(),
+            path: path.to_string_lossy().to_string(),
+        };
+        write_space_file(path, &space).unwrap();
+        space
+    }
+
+    #[test]
+    fn does_not_persist_the_absolute_path() {
+        let path = temp_space("path");
+        seed(&path);
+        let raw = fs::read_to_string(&path).unwrap();
+        assert!(!raw.contains("\"path\""), "space file leaked its location: {raw}");
+    }
+
+    #[test]
+    fn save_space_replaces_the_document_and_keeps_identity() {
+        let path = temp_space("save");
+        seed(&path);
+
+        let document = SpaceDocument {
+            nodes: vec![serde_json::json!({ "id": "n1", "type": "service" })],
+            edges: vec![serde_json::json!({ "id": "e1" })],
+        };
+        let updated_at = save_space(path.to_string_lossy().to_string(), document).unwrap();
+
+        let reloaded = read_space_file(&path).unwrap();
+        assert_eq!(reloaded.document.nodes.len(), 1);
+        assert_eq!(reloaded.document.edges.len(), 1);
+        assert_eq!(reloaded.id, "space-id");
+        assert_eq!(reloaded.created_at, 1_000);
+        assert_eq!(reloaded.updated_at, updated_at);
+        assert!(updated_at > 1_000);
+        // The path is rebuilt from the file's location, not from its contents.
+        assert_eq!(reloaded.path, path.to_string_lossy());
+    }
+
+    #[test]
+    fn save_space_refuses_a_missing_file() {
+        let path = temp_space("missing");
+        assert!(save_space(path.to_string_lossy().to_string(), SpaceDocument::default()).is_err());
+    }
+}
+

@@ -1,7 +1,8 @@
-import { NodeResizer, useReactFlow, type NodeProps } from "@xyflow/react"
+import { NodeResizer, type NodeProps } from "@xyflow/react"
 import { memo } from "react"
 
 import { cn } from "@/lib/utils"
+import { useCanvasActions } from "../canvas-actions"
 import { NodeHandles } from "../handles"
 import {
   BOUNDARY_COLOR_STYLES,
@@ -13,10 +14,10 @@ import { useInlineEdit } from "../use-inline-edit"
 function GroupNodeBase({ id, data, selected }: NodeProps & { data: GroupNodeData }) {
   const label = data.label ?? "Boundary"
   const styles = BOUNDARY_COLOR_STYLES[resolveBoundaryColor(data.color)]
-  const { updateNodeData } = useReactFlow()
+  const { patchNodeData, checkpoint } = useCanvasActions()
   const edit = useInlineEdit<HTMLInputElement>({
     value: label,
-    onCommit: (next) => updateNodeData(id, { label: next }),
+    onCommit: (next) => patchNodeData(id, { label: next }),
   })
 
   return (
@@ -31,6 +32,7 @@ function GroupNodeBase({ id, data, selected }: NodeProps & { data: GroupNodeData
         isVisible={Boolean(selected)}
         minWidth={200}
         minHeight={140}
+        onResizeStart={checkpoint}
         lineClassName="!border-transparent"
         handleClassName="!size-2 !rounded-[3px] !border !border-background !bg-foreground/60"
       />

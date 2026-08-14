@@ -35,7 +35,7 @@ export function SpaceShell({
           </Button>
         </header>
 
-        <SpaceCanvas />
+        <SpaceCanvas key={space.path} space={space} />
       </div>
     </div>
   )

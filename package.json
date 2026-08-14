@@ -11,6 +11,7 @@
     "prebuild": "bun run icons",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "test": "bun test",
     "tauri": "tauri"
   },
   "dependencies": {

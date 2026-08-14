@@ -9,23 +9,37 @@ import {
 import { useMemo, useRef, useState } from "react"
 import "@xyflow/react/dist/base.css"
 
+import type { SpaceFile } from "@/lib/spaces"
+import { cn } from "@/lib/utils"
+import { CanvasActionsProvider } from "./canvas-actions"
 import { CanvasPalette } from "./canvas-palette"
 import { CanvasToolbar } from "./canvas-toolbar"
-import {
-  DEFAULT_EDGE_OPTIONS,
-  EDGE_TYPES,
-  NODE_TYPES,
-  sortByGroupParenting,
-} from "./flow-config"
+import { fromDocument, toDocument } from "./document"
+import { DEFAULT_EDGE_OPTIONS, EDGE_TYPES, NODE_TYPES } from "./flow-config"
+import { sortByGroupParenting } from "./geometry"
 import { Inspector } from "./inspector/inspector"
 import type { IconEntry } from "./types"
 import { useCanvasShortcuts } from "./use-canvas-shortcuts"
 import { useSpaceCanvas } from "./use-space-canvas"
+import { useSpacePersistence } from "./use-space-persistence"
 
-function SpaceCanvasInner() {
-  const canvas = useSpaceCanvas()
+function SpaceCanvasInner({ space }: { space: SpaceFile }) {
+  // Read once — the file is the source of truth only at open time.
+  const [initial] = useState(() => fromDocument(space.document))
+  const [baseline] = useState(() =>
+    JSON.stringify(toDocument(initial.nodes, initial.edges))
+  )
+
+  const canvas = useSpaceCanvas(initial)
   const paneRef = useRef<HTMLDivElement>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
+
+  const persistence = useSpacePersistence({
+    path: space.path,
+    nodes: canvas.nodes,
+    edges: canvas.edges,
+    baseline,
+  })
 
   useCanvasShortcuts({
     onUndo: canvas.undo,
@@ -33,11 +47,21 @@ function SpaceCanvasInner() {
     onDuplicate: canvas.duplicateSelection,
     onSelectAll: canvas.selectAll,
     onDelete: canvas.deleteSelection,
+    onSave: () => void persistence.flush(),
     onEscape: () => {
       setDetailsOpen(false)
       canvas.clearSelection()
     },
   })
+
+  const actions = useMemo(
+    () => ({
+      patchNodeData: canvas.patchNodeData,
+      patchEdgeData: canvas.patchEdgeData,
+      checkpoint: canvas.checkpoint,
+    }),
+    [canvas.patchNodeData, canvas.patchEdgeData, canvas.checkpoint]
+  )
 
   const nodes = useMemo(() => sortByGroupParenting(canvas.nodes), [canvas.nodes])
 
@@ -59,101 +83,123 @@ function SpaceCanvasInner() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1">
-      <CanvasPalette onAdd={addToCentre} />
+    <CanvasActionsProvider value={actions}>
+      <div className="flex min-h-0 flex-1">
+        <CanvasPalette onAdd={addToCentre} />
 
-      <div
-        ref={paneRef}
-        className="relative min-w-0 flex-1"
-        onDragOver={canvas.onDragOver}
-        onDrop={canvas.onDrop}
-      >
-        <ReactFlow
-          nodes={nodes}
-          edges={canvas.edges}
-          nodeTypes={NODE_TYPES}
-          edgeTypes={EDGE_TYPES}
-          onNodesChange={canvas.onNodesChange}
-          onEdgesChange={canvas.onEdgesChange}
-          onConnect={canvas.onConnect}
-          onNodeDragStart={canvas.onNodeDragStart}
-          onNodeDrag={canvas.onNodeDrag}
-          onNodeDragStop={canvas.onNodeDragStop}
-          onNodeContextMenu={(event, node) => {
-            event.preventDefault()
-            canvas.selectOnly("node", node.id)
-            setDetailsOpen(true)
-          }}
-          onEdgeContextMenu={(event, edge) => {
-            event.preventDefault()
-            canvas.selectOnly("edge", edge.id)
-            setDetailsOpen(true)
-          }}
-          onPaneContextMenu={(event) => event.preventDefault()}
-          defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
-          connectionMode={ConnectionMode.Loose}
-          // Shortcuts own deletion so every removal lands in the undo stack.
-          deleteKeyCode={null}
-          multiSelectionKeyCode={["Meta", "Shift", "Control"]}
-          selectionKeyCode="Shift"
-          panOnDrag
-          minZoom={0.2}
-          maxZoom={2.5}
-          proOptions={{ hideAttribution: true }}
-          className="bg-muted/25"
+        <div
+          ref={paneRef}
+          className="relative min-w-0 flex-1"
+          onDragOver={canvas.onDragOver}
+          onDrop={canvas.onDrop}
         >
-          <Background
-            variant={BackgroundVariant.Dots}
-            gap={18}
-            size={1}
-            color="var(--color-border)"
-          />
-
-          <Panel position="bottom-left">
-            <CanvasToolbar
-              onUndo={canvas.undo}
-              onRedo={canvas.redo}
-              onAutoLayout={canvas.runAutoLayout}
-              detailsOpen={detailsOpen}
-              onToggleDetails={() => setDetailsOpen((open) => !open)}
-            />
-          </Panel>
-        </ReactFlow>
-
-        {detailsOpen && (
-          <Inspector
-            node={inspectedNode}
-            edge={inspectedEdge}
-            nodes={canvas.nodes}
-            onClose={() => setDetailsOpen(false)}
-            onDelete={() => {
-              canvas.deleteSelection()
-              setDetailsOpen(false)
+          <ReactFlow
+            nodes={nodes}
+            edges={canvas.edges}
+            nodeTypes={NODE_TYPES}
+            edgeTypes={EDGE_TYPES}
+            onNodesChange={canvas.onNodesChange}
+            onEdgesChange={canvas.onEdgesChange}
+            onConnect={canvas.onConnect}
+            onNodeDragStart={canvas.onNodeDragStart}
+            onNodeDrag={canvas.onNodeDrag}
+            onNodeDragStop={canvas.onNodeDragStop}
+            onNodeContextMenu={(event, node) => {
+              event.preventDefault()
+              canvas.selectOnly("node", node.id)
+              setDetailsOpen(true)
             }}
-          />
-        )}
+            onEdgeContextMenu={(event, edge) => {
+              event.preventDefault()
+              canvas.selectOnly("edge", edge.id)
+              setDetailsOpen(true)
+            }}
+            onPaneContextMenu={(event) => event.preventDefault()}
+            defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
+            connectionMode={ConnectionMode.Loose}
+            // Shortcuts own deletion so every removal lands in the undo stack.
+            deleteKeyCode={null}
+            multiSelectionKeyCode={["Meta", "Shift", "Control"]}
+            selectionKeyCode="Shift"
+            panOnDrag
+            minZoom={0.2}
+            maxZoom={2.5}
+            fitView={initial.nodes.length > 0}
+            fitViewOptions={{ padding: 0.3 }}
+            proOptions={{ hideAttribution: true }}
+            className="bg-muted/25"
+          >
+            <Background
+              variant={BackgroundVariant.Dots}
+              gap={18}
+              size={1}
+              color="var(--color-border)"
+            />
 
-        {canvas.nodes.length === 0 && (
-          <div className="pointer-events-none absolute inset-0 grid place-items-center">
-            <div className="flex max-w-xs flex-col items-center gap-1.5 rounded-2xl border border-dashed border-border bg-background/70 px-6 py-5 text-center backdrop-blur-sm">
-              <p className="text-[13px] font-medium">Drop your first component</p>
-              <p className="text-[12px] leading-relaxed text-muted-foreground">
-                Drag an icon from the left, or double-click one. Connect two nodes by
-                pulling from the dots on their edges, then right-click anything to edit
-                its details.
-              </p>
+            <Panel position="bottom-left">
+              <CanvasToolbar
+                onUndo={canvas.undo}
+                onRedo={canvas.redo}
+                onAutoLayout={canvas.runAutoLayout}
+                detailsOpen={detailsOpen}
+                onToggleDetails={() => setDetailsOpen((open) => !open)}
+              />
+            </Panel>
+
+            {persistence.state !== "idle" && (
+              <Panel position="bottom-right">
+                <span
+                  role={persistence.state === "error" ? "alert" : undefined}
+                  className={cn(
+                    "rounded-lg border bg-background/95 px-2 py-1 text-[11px] shadow-sm backdrop-blur",
+                    persistence.state === "error"
+                      ? "border-destructive/40 text-destructive"
+                      : "border-border/70 text-muted-foreground"
+                  )}
+                >
+                  {persistence.state === "error"
+                    ? `Not saved — ${persistence.error}`
+                    : "Saving…"}
+                </span>
+              </Panel>
+            )}
+          </ReactFlow>
+
+          {detailsOpen && (
+            <Inspector
+              node={inspectedNode}
+              edge={inspectedEdge}
+              nodes={canvas.nodes}
+              onClose={() => setDetailsOpen(false)}
+              onDelete={() => {
+                canvas.deleteSelection()
+                setDetailsOpen(false)
+              }}
+            />
+          )}
+
+          {canvas.nodes.length === 0 && (
+            <div className="pointer-events-none absolute inset-0 grid place-items-center">
+              <div className="flex max-w-xs flex-col items-center gap-1.5 rounded-2xl border border-dashed border-border bg-background/70 px-6 py-5 text-center backdrop-blur-sm">
+                <p className="text-[13px] font-medium">Drop your first component</p>
+                <p className="text-[12px] leading-relaxed text-muted-foreground">
+                  Drag an icon from the left, or double-click one. Connect two nodes by
+                  pulling from the dots on their edges, then right-click anything to edit
+                  its details.
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+    </CanvasActionsProvider>
   )
 }
 
-export function SpaceCanvas() {
+export function SpaceCanvas({ space }: { space: SpaceFile }) {
   return (
     <ReactFlowProvider>
-      <SpaceCanvasInner />
+      <SpaceCanvasInner space={space} />
     </ReactFlowProvider>
   )
 }

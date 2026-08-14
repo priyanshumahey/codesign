@@ -1,20 +1,22 @@
-import { useReactFlow, type NodeProps } from "@xyflow/react"
+import type { NodeProps } from "@xyflow/react"
 import { memo } from "react"
 
 import { cn } from "@/lib/utils"
+import { useCanvasActions } from "../canvas-actions"
 import { NodeHandles } from "../handles"
 import type { NoteNodeData } from "../types"
 import { useInlineEdit } from "../use-inline-edit"
 
 function NoteNodeBase({ id, data, selected }: NodeProps & { data: NoteNodeData }) {
   const variant = data.variant ?? "body"
-  const { updateNodeData } = useReactFlow()
+  const text = data.text ?? ""
+  const { patchNodeData } = useCanvasActions()
   const edit = useInlineEdit<HTMLTextAreaElement>({
-    value: data.text,
-    onCommit: (text) => updateNodeData(id, { text }),
+    value: text,
+    onCommit: (next) => patchNodeData(id, { text: next }),
     allowEmpty: true,
     // A freshly dropped note is empty, so open straight into edit mode.
-    initiallyEditing: data.text.length === 0,
+    initiallyEditing: text.length === 0,
   })
 
   const textClass = variant === "heading" ? "text-base font-semibold" : "text-[13px]"
@@ -53,10 +55,10 @@ function NoteNodeBase({ id, data, selected }: NodeProps & { data: NoteNodeData }
           className={cn(
             "whitespace-pre-wrap break-words leading-snug",
             textClass,
-            !data.text && "text-muted-foreground/60"
+            !text && "text-muted-foreground/60"
           )}
         >
-          {data.text || "Empty note"}
+          {text || "Empty note"}
         </p>
       )}
     </div>

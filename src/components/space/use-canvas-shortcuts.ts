@@ -6,6 +6,7 @@ type Options = {
   onDuplicate: () => void
   onSelectAll: () => void
   onDelete: () => void
+  onSave: () => void
   onEscape: () => void
 }
 
@@ -25,6 +26,7 @@ export function useCanvasShortcuts({
   onDuplicate,
   onSelectAll,
   onDelete,
+  onSave,
   onEscape,
 }: Options) {
   useEffect(() => {
@@ -33,9 +35,16 @@ export function useCanvasShortcuts({
         onEscape()
         return
       }
-      if (isTypingTarget(event.target)) return
 
       const mod = event.metaKey || event.ctrlKey
+
+      // Saving stays available while a label or inspector field has focus.
+      if (mod && event.key.toLowerCase() === "s") {
+        event.preventDefault()
+        onSave()
+        return
+      }
+      if (isTypingTarget(event.target)) return
 
       if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault()
@@ -67,5 +76,5 @@ export function useCanvasShortcuts({
 
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
-  }, [onUndo, onRedo, onDuplicate, onSelectAll, onDelete, onEscape])
+  }, [onUndo, onRedo, onDuplicate, onSelectAll, onDelete, onSave, onEscape])
 }

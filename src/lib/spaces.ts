@@ -23,19 +23,25 @@ export type SpaceSummary = {
   size: number | null
 }
 
+export type SpaceDocument = { nodes: unknown[]; edges: unknown[] }
+
 export type SpaceFile = {
   version: number
   id: string
   name: string
   createdAt: number
   updatedAt: number
-  document: { nodes: unknown[]; edges: unknown[] }
+  document: SpaceDocument
   path: string
 }
 
 export const listRecents = () => invoke<RecentItem[]>("list_recents")
 
 export const openSpace = (path: string) => invoke<SpaceFile>("open_space", { path })
+
+/** Writes the canvas back to disk. Resolves with the new `updatedAt`. */
+export const saveSpace = (path: string, document: SpaceDocument) =>
+  invoke<number>("save_space", { path, document })
 
 export const renameSpace = (path: string, name: string) =>
   invoke<SpaceFile>("rename_space", { path, name })

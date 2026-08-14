@@ -1,17 +1,19 @@
-import { useReactFlow, type NodeProps } from "@xyflow/react"
+import type { NodeProps } from "@xyflow/react"
 import { memo } from "react"
 
 import { cn } from "@/lib/utils"
+import { useCanvasActions } from "../canvas-actions"
 import { NodeHandles } from "../handles"
 import { IconGraphic } from "../icon-graphic"
 import type { ServiceNodeData } from "../types"
 import { useInlineEdit } from "../use-inline-edit"
 
 function ServiceNodeBase({ id, data, selected }: NodeProps & { data: ServiceNodeData }) {
-  const { updateNodeData } = useReactFlow()
+  const label = data.label ?? ""
+  const { patchNodeData } = useCanvasActions()
   const edit = useInlineEdit<HTMLInputElement>({
-    value: data.label,
-    onCommit: (label) => updateNodeData(id, { label }),
+    value: label,
+    onCommit: (next) => patchNodeData(id, { label: next }),
   })
 
   return (
@@ -60,7 +62,7 @@ function ServiceNodeBase({ id, data, selected }: NodeProps & { data: ServiceNode
               selected && "bg-foreground/5"
             )}
           >
-            {data.label}
+            {label}
           </span>
           {data.description && (
             <span className="max-w-full truncate text-center text-[9px] leading-tight text-muted-foreground">

@@ -34,12 +34,15 @@ import {
 type Snapshot = { nodes: Node[]; edges: Edge[] }
 
 let idCounter = 0
-const nextId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${idCounter++}`
+// Ids outlive the session once a document is saved, so mix in per-run entropy.
+const SESSION = Math.random().toString(36).slice(2, 6)
+const nextId = (prefix: string) =>
+  `${prefix}-${Date.now().toString(36)}-${SESSION}${idCounter++}`
 
-export function useSpaceCanvas() {
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
-  const { screenToFlowPosition } = useReactFlow()
+export function useSpaceCanvas(initial: Snapshot) {
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(initial.nodes)
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initial.edges)
+  const { screenToFlowPosition, updateNodeData, updateEdgeData } = useReactFlow()
 
   const nodesRef = useRef(nodes)
   const edgesRef = useRef(edges)
@@ -48,7 +51,10 @@ export function useSpaceCanvas() {
 
   const past = useRef<Snapshot[]>([])
   const future = useRef<Snapshot[]>([])
-  const colorCursor = useRef(0)
+  // Continue the palette rather than restarting at the first colour on reopen.
+  const colorCursor = useRef(
+    initial.nodes.filter((node) => node.type === GROUP_NODE_TYPE).length
+  )
 
   const snapshot = useCallback(() => {
     past.current.push({ nodes: nodesRef.current, edges: edgesRef.current })
@@ -167,6 +173,22 @@ export function useSpaceCanvas() {
   )
 
   const onNodeDragStart = useCallback(() => snapshot(), [snapshot])
+
+  const patchNodeData = useCallback(
+    (id: string, data: Record<string, unknown>) => {
+      snapshot()
+      updateNodeData(id, data)
+    },
+    [snapshot, updateNodeData]
+  )
+
+  const patchEdgeData = useCallback(
+    (id: string, data: Record<string, unknown>) => {
+      snapshot()
+      updateEdgeData(id, data)
+    },
+    [snapshot, updateEdgeData]
+  )
 
   /** Keeps edges attached to the facing sides while a node is being moved. */
   const onNodeDrag = useCallback(() => {
@@ -309,6 +331,9 @@ export function useSpaceCanvas() {
     onNodeDrag,
     onNodeDragStop,
     spawnIconAtScreen,
+    patchNodeData,
+    patchEdgeData,
+    checkpoint: snapshot,
     deleteSelection,
     duplicateSelection,
     selectAll,

@@ -53,3 +53,17 @@ export function findGroupAt(
   }
   return undefined
 }
+
+/**
+ * React Flow reads parent nodes from array order — a child listed before its
+ * group is positioned absolutely and jumps out of the box on first render.
+ */
+export function sortByGroupParenting(nodes: Node[]): Node[] {
+  const groups: Node[] = []
+  const rest: Node[] = []
+  for (const node of nodes) {
+    if (node.type === GROUP_NODE_TYPE) groups.push(node)
+    else rest.push(node)
+  }
+  return [...groups, ...rest]
+}

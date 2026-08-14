@@ -1,6 +1,7 @@
-import { useReactFlow, type Node } from "@xyflow/react"
+import type { Node } from "@xyflow/react"
 
 import { cn } from "@/lib/utils"
+import { useCanvasActions } from "../canvas-actions"
 import {
   BOUNDARY_COLORS,
   BOUNDARY_COLOR_STYLES,
@@ -14,8 +15,8 @@ import {
 import { AreaField, Field, Section, TextField } from "./fields"
 
 export function NodeInspector({ node }: { node: Node }) {
-  const { updateNodeData } = useReactFlow()
-  const patch = (data: Record<string, unknown>) => updateNodeData(node.id, data)
+  const { patchNodeData } = useCanvasActions()
+  const patch = (data: Record<string, unknown>) => patchNodeData(node.id, data)
 
   if (node.type === GROUP_NODE_TYPE) {
     const data = node.data as GroupNodeData

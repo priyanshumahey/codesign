@@ -9,6 +9,7 @@ pub fn run() {
             spaces::list_recents,
             spaces::create_space,
             spaces::open_space,
+            spaces::save_space,
             spaces::rename_space,
             spaces::delete_space,
             spaces::forget_recent,

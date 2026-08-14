@@ -1,4 +1,4 @@
-import { useReactFlow, type Edge } from "@xyflow/react"
+import type { Edge } from "@xyflow/react"
 
 import {
   Select,
@@ -7,15 +7,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useCanvasActions } from "../canvas-actions"
 import { HTTP_METHODS, type SystemEdgeData } from "../types"
 import { AreaField, Field, Section, TextField } from "./fields"
 
 const NO_METHOD = "__none__"
 
 export function EdgeInspector({ edge }: { edge: Edge }) {
-  const { updateEdgeData } = useReactFlow()
+  const { patchEdgeData } = useCanvasActions()
   const data = (edge.data ?? {}) as SystemEdgeData
-  const patch = (next: Record<string, unknown>) => updateEdgeData(edge.id, next)
+  const patch = (next: Record<string, unknown>) => patchEdgeData(edge.id, next)
 
   return (
     <div className="flex flex-col gap-6">
