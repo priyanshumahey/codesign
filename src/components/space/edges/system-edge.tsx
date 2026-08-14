@@ -51,7 +51,7 @@ function EdgeLabelInput({
       }}
       placeholder="Label"
       size={Math.max(draft.length, 6)}
-      className="nodrag nopan rounded-md border border-foreground/40 bg-background px-1.5 py-0.5 text-center text-[10px] font-medium outline-none"
+      className="nodrag nopan rounded-md border border-foreground/40 bg-card px-1.5 py-0.5 text-center text-[10px] font-medium text-foreground outline-none shadow-sm"
     />
   )
 }
@@ -122,12 +122,15 @@ function SystemEdgeBase({
                   startEdgeLabelEdit(id)
                 }}
                 className={cn(
-                  "nodrag nopan flex cursor-text items-center gap-1 rounded-md border bg-background px-1.5 py-0.5 text-[10px] font-medium shadow-sm",
-                  selected ? "border-foreground/40" : "border-border/70"
+                  // `bg-card` rather than `bg-background`: in dark mode the
+                  // background is the same colour as the canvas, so the chip
+                  // disappears into it.
+                  "nodrag nopan flex cursor-text items-center gap-1 rounded-md border bg-card px-1.5 py-0.5 text-[10px] font-medium text-foreground shadow-sm",
+                  selected ? "border-foreground/50" : "border-foreground/15"
                 )}
               >
                 {method && (
-                  <span className="rounded bg-muted px-1 font-mono text-[9px] uppercase text-muted-foreground">
+                  <span className="rounded bg-muted px-1 font-mono text-[9px] font-semibold uppercase text-foreground/70">
                     {method}
                   </span>
                 )}
