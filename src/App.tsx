@@ -15,7 +15,7 @@ export default function App() {
     <div className="flex h-full flex-col bg-muted/40">
       <TitleBar theme={theme} onToggleTheme={toggleTheme} />
       {space ? (
-        <SpaceShell space={space} onBack={() => setSpace(null)} />
+        <SpaceShell space={space} onBack={() => setSpace(null)} onRenamed={setSpace} />
       ) : (
         <Launcher onOpenSpace={setSpace} />
       )}

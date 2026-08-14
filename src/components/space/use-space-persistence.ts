@@ -31,6 +31,10 @@ export function useSpacePersistence({
   const latest = useRef({ nodes, edges })
   latest.current = { nodes, edges }
 
+  // A rename moves the file, so writes always target the newest path.
+  const pathRef = useRef(path)
+  pathRef.current = path
+
   const lastSaved = useRef(baseline)
   const queue = useRef<Promise<void>>(Promise.resolve())
 
@@ -40,7 +44,7 @@ export function useSpacePersistence({
       if (json === lastSaved.current) return
       setState("saving")
       try {
-        await saveSpace(path, JSON.parse(json))
+        await saveSpace(pathRef.current, JSON.parse(json))
         lastSaved.current = json
         setState("idle")
         setError(null)
@@ -50,7 +54,7 @@ export function useSpacePersistence({
       }
     })
     return queue.current
-  }, [path])
+  }, [])
 
   useEffect(() => {
     const timer = setTimeout(() => void flush(), AUTOSAVE_DELAY)
