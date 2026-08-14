@@ -1,5 +1,8 @@
 import { createContext, useContext } from "react"
 
+/** The edge whose label is being typed, and the character that opened it. */
+export type EdgeLabelEdit = { id: string; seed: string }
+
 /**
  * React Flow's own `updateNodeData` bypasses the undo stack, so nodes and the
  * inspector patch through here instead.
@@ -9,6 +12,9 @@ export type CanvasActions = {
   patchEdgeData: (id: string, data: Record<string, unknown>) => void
   /** Records an undo checkpoint before a direct manipulation, e.g. a resize. */
   checkpoint: () => void
+  editingEdge: EdgeLabelEdit | null
+  startEdgeLabelEdit: (id: string, seed?: string) => void
+  endEdgeLabelEdit: () => void
 }
 
 const CanvasActionsContext = createContext<CanvasActions | null>(null)

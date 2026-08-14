@@ -6,19 +6,20 @@ import {
   ReactFlow,
   ReactFlowProvider,
 } from "@xyflow/react"
-import { useMemo, useRef, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import "@xyflow/react/dist/base.css"
 
 import type { SpaceFile } from "@/lib/spaces"
 import { cn } from "@/lib/utils"
-import { CanvasActionsProvider } from "./canvas-actions"
+import { CanvasActionsProvider, type EdgeLabelEdit } from "./canvas-actions"
 import { CanvasPalette } from "./canvas-palette"
 import { CanvasToolbar } from "./canvas-toolbar"
 import { fromDocument, toDocument } from "./document"
+import { EdgeContextMenu, type EdgeMenuTarget } from "./edge-context-menu"
 import { DEFAULT_EDGE_OPTIONS, EDGE_TYPES, NODE_TYPES } from "./flow-config"
 import { sortByGroupParenting } from "./geometry"
 import { Inspector } from "./inspector/inspector"
-import type { IconEntry } from "./types"
+import { resolveEdgeDirection, type IconEntry } from "./types"
 import { useCanvasShortcuts } from "./use-canvas-shortcuts"
 import { useSpaceCanvas } from "./use-space-canvas"
 import { useSpacePersistence } from "./use-space-persistence"
@@ -33,6 +34,8 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
   const canvas = useSpaceCanvas(initial)
   const paneRef = useRef<HTMLDivElement>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [edgeMenu, setEdgeMenu] = useState<EdgeMenuTarget | null>(null)
+  const [edgeEdit, setEdgeEdit] = useState<EdgeLabelEdit | null>(null)
 
   const persistence = useSpacePersistence({
     path: space.path,
@@ -41,6 +44,22 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
     baseline,
   })
 
+  const startEdgeLabelEdit = useCallback((id: string, seed = "") => {
+    setEdgeMenu(null)
+    setEdgeEdit({ id, seed })
+  }, [])
+
+  const endEdgeLabelEdit = useCallback(() => setEdgeEdit(null), [])
+
+  // Deleting an edge mid-edit would otherwise leave the state stuck on it.
+  const editingEdge =
+    edgeEdit && canvas.edges.some((edge) => edge.id === edgeEdit.id) ? edgeEdit : null
+
+  const selectedEdges = canvas.edges.filter((edge) => edge.selected)
+  const selectedNodes = canvas.nodes.filter((node) => node.selected)
+  const soleSelectedEdge =
+    selectedEdges.length === 1 && selectedNodes.length === 0 ? selectedEdges[0]! : null
+
   useCanvasShortcuts({
     onUndo: canvas.undo,
     onRedo: canvas.redo,
@@ -48,7 +67,12 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
     onSelectAll: canvas.selectAll,
     onDelete: canvas.deleteSelection,
     onSave: () => void persistence.flush(),
+    onType: (key) => {
+      if (edgeMenu || editingEdge || !soleSelectedEdge) return
+      startEdgeLabelEdit(soleSelectedEdge.id, key)
+    },
     onEscape: () => {
+      setEdgeMenu(null)
       setDetailsOpen(false)
       canvas.clearSelection()
     },
@@ -59,15 +83,23 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
       patchNodeData: canvas.patchNodeData,
       patchEdgeData: canvas.patchEdgeData,
       checkpoint: canvas.checkpoint,
+      editingEdge,
+      startEdgeLabelEdit,
+      endEdgeLabelEdit,
     }),
-    [canvas.patchNodeData, canvas.patchEdgeData, canvas.checkpoint]
+    [
+      canvas.patchNodeData,
+      canvas.patchEdgeData,
+      canvas.checkpoint,
+      editingEdge,
+      startEdgeLabelEdit,
+      endEdgeLabelEdit,
+    ]
   )
 
   const nodes = useMemo(() => sortByGroupParenting(canvas.nodes), [canvas.nodes])
 
   // The inspector only makes sense for a single target.
-  const selectedNodes = canvas.nodes.filter((node) => node.selected)
-  const selectedEdges = canvas.edges.filter((edge) => edge.selected)
   const inspectedNode =
     selectedNodes.length === 1 && selectedEdges.length === 0 ? selectedNodes[0] : null
   const inspectedEdge =
@@ -106,13 +138,24 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
             onNodeDragStop={canvas.onNodeDragStop}
             onNodeContextMenu={(event, node) => {
               event.preventDefault()
+              setEdgeMenu(null)
               canvas.selectOnly("node", node.id)
               setDetailsOpen(true)
             }}
             onEdgeContextMenu={(event, edge) => {
               event.preventDefault()
               canvas.selectOnly("edge", edge.id)
-              setDetailsOpen(true)
+              setEdgeMenu({
+                id: edge.id,
+                x: event.clientX,
+                y: event.clientY,
+                direction: resolveEdgeDirection(edge.data?.direction),
+              })
+            }}
+            onEdgeDoubleClick={(event, edge) => {
+              event.stopPropagation()
+              canvas.selectOnly("edge", edge.id)
+              startEdgeLabelEdit(edge.id)
             }}
             onPaneContextMenu={(event) => event.preventDefault()}
             defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
@@ -175,6 +218,19 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
                 canvas.deleteSelection()
                 setDetailsOpen(false)
               }}
+            />
+          )}
+
+          {edgeMenu && (
+            <EdgeContextMenu
+              target={edgeMenu}
+              onClose={() => setEdgeMenu(null)}
+              onSelectDirection={(direction) =>
+                canvas.setEdgeDirection(edgeMenu.id, direction)
+              }
+              onRename={() => startEdgeLabelEdit(edgeMenu.id)}
+              onEditDetails={() => setDetailsOpen(true)}
+              onDelete={canvas.deleteSelection}
             />
           )}
 

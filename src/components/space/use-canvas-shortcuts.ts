@@ -8,6 +8,8 @@ type Options = {
   onDelete: () => void
   onSave: () => void
   onEscape: () => void
+  /** A printable key pressed with nothing focused, used to start typing a label. */
+  onType: (key: string) => void
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -28,6 +30,7 @@ export function useCanvasShortcuts({
   onDelete,
   onSave,
   onEscape,
+  onType,
 }: Options) {
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -51,7 +54,16 @@ export function useCanvasShortcuts({
         onDelete()
         return
       }
-      if (!mod) return
+      if (!mod) {
+        // A bare printable key types straight into the selected edge's label.
+        // Space is left alone because React Flow pans with it.
+        if (event.key.length === 1 && event.key !== " " && !event.altKey) {
+          onType(event.key)
+        } else if (event.key === "Enter" || event.key === "F2") {
+          onType("")
+        }
+        return
+      }
 
       switch (event.key.toLowerCase()) {
         case "z":
@@ -76,5 +88,5 @@ export function useCanvasShortcuts({
 
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
-  }, [onUndo, onRedo, onDuplicate, onSelectAll, onDelete, onSave, onEscape])
+  }, [onUndo, onRedo, onDuplicate, onSelectAll, onDelete, onSave, onEscape, onType])
 }

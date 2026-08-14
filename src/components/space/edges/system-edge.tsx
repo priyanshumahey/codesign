@@ -4,12 +4,60 @@ import {
   getSmoothStepPath,
   type EdgeProps,
 } from "@xyflow/react"
-import { memo } from "react"
+import { memo, useEffect, useRef, useState } from "react"
 
 import { cn } from "@/lib/utils"
-import type { SystemEdgeData } from "../types"
+import { useCanvasActions } from "../canvas-actions"
+import { resolveEdgeDirection, type SystemEdgeData } from "../types"
+
+function EdgeLabelInput({
+  id,
+  value,
+  seed,
+}: {
+  id: string
+  value: string
+  /** First character typed, when the editor was opened by typing. */
+  seed: string
+}) {
+  const { patchEdgeData, endEdgeLabelEdit } = useCanvasActions()
+  const [draft, setDraft] = useState(seed || value)
+  const ref = useRef<HTMLInputElement>(null)
+  const settled = useRef(false)
+
+  useEffect(() => {
+    ref.current?.focus()
+    if (!seed) ref.current?.select()
+  }, [seed])
+
+  // Blur fires after Enter/Escape too, so only the first outcome counts.
+  const finish = (next: string | null) => {
+    if (settled.current) return
+    settled.current = true
+    if (next !== null && next !== value) patchEdgeData(id, { label: next })
+    endEdgeLabelEdit()
+  }
+
+  return (
+    <input
+      ref={ref}
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={() => finish(draft.trim())}
+      onKeyDown={(event) => {
+        event.stopPropagation()
+        if (event.key === "Enter") finish(draft.trim())
+        else if (event.key === "Escape") finish(null)
+      }}
+      placeholder="Label"
+      size={Math.max(draft.length, 6)}
+      className="nodrag nopan rounded-md border border-foreground/40 bg-background px-1.5 py-0.5 text-center text-[10px] font-medium outline-none"
+    />
+  )
+}
 
 function SystemEdgeBase({
+  id,
   sourceX,
   sourceY,
   targetX,
@@ -18,9 +66,12 @@ function SystemEdgeBase({
   targetPosition,
   selected,
   data,
+  markerStart,
   markerEnd,
   style,
 }: EdgeProps & { data?: SystemEdgeData }) {
+  const { editingEdge, startEdgeLabelEdit } = useCanvasActions()
+
   const [path, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -33,12 +84,18 @@ function SystemEdgeBase({
   })
 
   const { label, method } = data ?? {}
+  const direction = resolveEdgeDirection(data?.direction)
+  const editing = editingEdge?.id === id ? editingEdge : null
 
   return (
     <>
       <BaseEdge
+        // WebKit does not repaint a path when its marker attributes change, so
+        // the element is rebuilt whenever the arrowheads move.
+        key={direction}
         path={path}
-        markerEnd={markerEnd}
+        markerStart={direction === "backward" || direction === "both" ? markerStart : undefined}
+        markerEnd={direction === "forward" || direction === "both" ? markerEnd : undefined}
         style={{
           ...style,
           stroke: selected ? "var(--color-foreground)" : "var(--color-muted-foreground)",
@@ -47,23 +104,36 @@ function SystemEdgeBase({
         }}
       />
 
-      {(label || method) && (
+      {(editing || label || method) && (
         <EdgeLabelRenderer>
           <div
             style={{
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
             }}
-            className={cn(
-              "pointer-events-none absolute flex items-center gap-1 rounded-md border bg-background px-1.5 py-0.5 text-[10px] font-medium shadow-sm",
-              selected ? "border-foreground/40" : "border-border/70"
-            )}
+            // The edge label layer is pointer-events:none / user-select:none.
+            className="pointer-events-auto absolute select-text"
           >
-            {method && (
-              <span className="rounded bg-muted px-1 font-mono text-[9px] uppercase text-muted-foreground">
-                {method}
-              </span>
+            {editing ? (
+              <EdgeLabelInput id={id} value={label ?? ""} seed={editing.seed} />
+            ) : (
+              <div
+                onDoubleClick={(event) => {
+                  event.stopPropagation()
+                  startEdgeLabelEdit(id)
+                }}
+                className={cn(
+                  "nodrag nopan flex cursor-text items-center gap-1 rounded-md border bg-background px-1.5 py-0.5 text-[10px] font-medium shadow-sm",
+                  selected ? "border-foreground/40" : "border-border/70"
+                )}
+              >
+                {method && (
+                  <span className="rounded bg-muted px-1 font-mono text-[9px] uppercase text-muted-foreground">
+                    {method}
+                  </span>
+                )}
+                {label}
+              </div>
             )}
-            {label}
           </div>
         </EdgeLabelRenderer>
       )}

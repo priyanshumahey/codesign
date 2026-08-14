@@ -25,6 +25,7 @@ import {
   NOTE_NODE_TYPE,
   SERVICE_NODE_SIZE,
   SERVICE_NODE_TYPE,
+  type EdgeDirection,
   type GroupNodeData,
   type IconEntry,
   type NoteNodeData,
@@ -190,6 +191,11 @@ export function useSpaceCanvas(initial: Snapshot) {
     [snapshot, updateEdgeData]
   )
 
+  const setEdgeDirection = useCallback(
+    (id: string, direction: EdgeDirection) => patchEdgeData(id, { direction }),
+    [patchEdgeData]
+  )
+
   /** Keeps edges attached to the facing sides while a node is being moved. */
   const onNodeDrag = useCallback(() => {
     setEdges((current) => retargetEdges(current, nodesRef.current))
@@ -333,6 +339,7 @@ export function useSpaceCanvas(initial: Snapshot) {
     spawnIconAtScreen,
     patchNodeData,
     patchEdgeData,
+    setEdgeDirection,
     checkpoint: snapshot,
     deleteSelection,
     duplicateSelection,
