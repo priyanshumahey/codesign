@@ -12,7 +12,7 @@ export default function App() {
   const [space, setSpace] = useState<SpaceFile | null>(null)
 
   return (
-    <div className="flex h-full flex-col bg-muted/40">
+    <div className="flex h-full flex-col bg-background">
       <TitleBar theme={theme} onToggleTheme={toggleTheme} />
       {space ? (
         <SpaceShell space={space} onBack={() => setSpace(null)} onRenamed={setSpace} />

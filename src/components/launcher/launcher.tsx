@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { SegmentedControl } from "@/components/ui/segmented-control"
 import { formatRelativeTime, parentDir, shortenPath } from "@/lib/format"
 import { useSpacePreviews } from "@/lib/preview"
 import {
@@ -40,7 +41,6 @@ import {
   type SpaceFile,
   type SpaceSummary,
 } from "@/lib/spaces"
-import { cn } from "@/lib/utils"
 import { DeleteDialog, RenameDialog } from "./dialogs"
 import { LauncherSidebar } from "./launcher-sidebar"
 import type { SpaceActionHandlers } from "./space-actions"
@@ -261,7 +261,7 @@ export function Launcher({ onOpenSpace }: { onOpenSpace: (space: SpaceFile) => v
       : `${items.length} ${items.length === 1 ? "space" : "spaces"}`
 
   return (
-    <div className="flex min-h-0 flex-1">
+    <div className="flex min-h-0 flex-1 bg-background">
       <LauncherSidebar
         view={view}
         folders={folders}
@@ -273,9 +273,9 @@ export function Launcher({ onOpenSpace }: { onOpenSpace: (space: SpaceFile) => v
         onAddFolder={() => void handleAddFolder()}
       />
 
-      <main className="min-w-0 flex-1 pb-2 pr-2">
-        <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-background shadow-sm">
-          <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border/60 px-4">
+      <main className="min-w-0 flex-1 border-l border-border/70 bg-background">
+        <div className="flex h-full flex-col overflow-hidden">
+          <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border/70 px-4">
             <div className="min-w-0">
               <h1 className="truncate font-heading text-[15px] font-semibold tracking-tight">
                 {title}
@@ -290,7 +290,7 @@ export function Launcher({ onOpenSpace }: { onOpenSpace: (space: SpaceFile) => v
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search spaces"
-                  className="h-8 w-52 pl-8 text-[13px]"
+                  className="h-8 w-52 border-transparent bg-muted/55 pl-8 text-[12px] shadow-none focus-visible:border-foreground/20"
                 />
               </div>
 
@@ -315,27 +315,24 @@ export function Launcher({ onOpenSpace }: { onOpenSpace: (space: SpaceFile) => v
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <div className="flex items-center gap-1 rounded-xl bg-muted/70 p-1">
-                {([
-                  ["grid", SquaresFour, "Grid view"],
-                  ["list", List, "List view"],
-                ] as const).map(([key, Icon, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    title={label}
-                    onClick={() => setLayout(key)}
-                    className={cn(
-                      "grid size-7 place-items-center rounded-lg transition-colors",
-                      layout === key
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <Icon className="size-3.5" />
-                  </button>
-                ))}
-              </div>
+              <SegmentedControl
+                value={layout}
+                options={[
+                  {
+                    value: "grid",
+                    label: "Grid view",
+                    icon: <SquaresFour className="size-3.5" />,
+                  },
+                  {
+                    value: "list",
+                    label: "List view",
+                    icon: <List className="size-3.5" />,
+                  },
+                ]}
+                onValueChange={setLayout}
+                iconOnly
+                className="w-[68px]"
+              />
             </div>
           </header>
 
@@ -362,7 +359,7 @@ export function Launcher({ onOpenSpace }: { onOpenSpace: (space: SpaceFile) => v
                 onAddFolder={() => void handleAddFolder()}
               />
             ) : layout === "grid" ? (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(186px,1fr))] gap-x-4 gap-y-5 p-5">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(196px,1fr))] gap-x-4 gap-y-5 p-5">
                 {items.map((item) => (
                   <SpaceTile
                     key={item.path}
@@ -505,7 +502,7 @@ function Shell({
 }) {
   return (
     <div className="grid h-full place-items-center p-8">
-      <div className="flex w-full max-w-sm flex-col items-center gap-3 rounded-2xl border border-dashed border-border px-6 py-8 text-center">
+      <div className="flex w-full max-w-sm flex-col items-center gap-3 px-6 py-8 text-center">
         <h2 className="font-heading text-[15px] font-semibold tracking-tight">{title}</h2>
         <p className="text-[13px] leading-relaxed text-muted-foreground">{body}</p>
         {action && <div className="pt-1">{action}</div>}

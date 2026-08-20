@@ -25,16 +25,18 @@ function NavItem({
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex w-full items-center gap-2 rounded-lg px-2 py-[7px] text-[13px] transition-colors",
+        "relative flex h-8 w-full items-center gap-2 rounded-lg px-2 text-[12px] transition-colors",
         active
-          ? "bg-background text-foreground shadow-sm"
-          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+          : "text-muted-foreground hover:bg-sidebar-accent/65 hover:text-foreground"
       )}
     >
       <ItemIcon className="size-4 shrink-0" />
       <span className="min-w-0 flex-1 truncate text-left">{label}</span>
       {count ? (
-        <span className="text-[11px] tabular-nums text-muted-foreground">{count}</span>
+        <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+          {count}
+        </span>
       ) : null}
     </button>
   )
@@ -60,20 +62,23 @@ export function LauncherSidebar({
   onAddFolder: () => void
 }) {
   return (
-    <aside className="flex w-[248px] shrink-0 flex-col gap-1 px-3 pb-3 text-sidebar-foreground">
-      <div className="flex flex-col gap-1.5 pb-3">
-        <Button size="lg" onClick={onNewSpace} className="w-full justify-start gap-2">
+    <aside className="flex w-[232px] shrink-0 flex-col gap-1 bg-sidebar px-2.5 py-3 text-sidebar-foreground">
+      <div className="flex flex-col gap-0.5 pb-3">
+        <Button
+          variant="ghost"
+          onClick={onNewSpace}
+          className="h-8 w-full justify-start gap-2 rounded-lg px-2 text-[12px] font-medium hover:bg-sidebar-accent"
+        >
           <Plus />
           New space
         </Button>
         <Button
-          size="lg"
-          variant="outline"
+          variant="ghost"
           onClick={onOpenSpace}
-          className="w-full justify-start gap-2 bg-background/60"
+          className="h-8 w-full justify-start gap-2 rounded-lg px-2 text-[12px] font-normal text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
         >
           <Folder />
-          Open space…
+          Open space
         </Button>
       </div>
 
@@ -94,15 +99,15 @@ export function LauncherSidebar({
         />
       </nav>
 
-      <div className="mt-5 flex items-center justify-between px-2 pb-1">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+      <div className="mt-4 flex items-center justify-between px-2 pb-1">
+        <span className="text-[10px] font-medium text-muted-foreground/80">
           Folders
         </span>
         <button
           type="button"
           onClick={onAddFolder}
           title="Add folder"
-          className="grid size-5 place-items-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="grid size-5 place-items-center rounded text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
         >
           <FolderPlus className="size-3.5" />
         </button>

@@ -139,7 +139,7 @@ function Node({ node }: { node: PreviewNode }) {
     return (
       <div
         style={style}
-        className={cn("absolute rounded-2xl border-2 border-dashed", styles.fill, styles.border)}
+        className={cn("absolute rounded-xl border-2 border-dashed", styles.fill, styles.border)}
       >
         {node.label && (
           <span
@@ -168,7 +168,7 @@ function Node({ node }: { node: PreviewNode }) {
 
   return (
     <div style={style} className="absolute flex flex-col items-center gap-2">
-      <div className="grid size-16 shrink-0 place-items-center rounded-2xl border border-border/70 bg-card shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+      <div className="grid size-16 shrink-0 place-items-center rounded-lg border border-border/80 bg-card shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
         {node.icon && <IconGraphic path={node.icon} mono={node.mono} className="size-9" />}
       </div>
       {node.label && (

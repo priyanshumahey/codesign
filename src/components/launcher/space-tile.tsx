@@ -1,7 +1,7 @@
 import { DotsThree, Folder, PushPin } from "@phosphor-icons/react"
 import { Fragment } from "react"
 
-import { CodesignMark } from "@/components/codesign-mark"
+import { CodesignBadge } from "@/components/codesign-mark"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -34,7 +34,7 @@ function Thumbnail({
   return (
     <div
       className={cn(
-        "relative aspect-[4/3] overflow-hidden rounded-xl border bg-muted/25 transition-colors",
+        "relative aspect-[4/3] overflow-hidden rounded-lg border bg-muted/25 transition-colors",
         item.missing ? "border-dashed border-border" : "border-border/70 group-hover:border-foreground/25"
       )}
     >
@@ -50,16 +50,9 @@ function Thumbnail({
               )}
             />
           ) : (
-            <span
-              className={cn(
-                "grid size-10 place-items-center rounded-lg shadow-sm",
-                item.missing
-                  ? "bg-muted text-muted-foreground/50"
-                  : "bg-background text-foreground"
-              )}
-            >
-              <CodesignMark className="size-5" />
-            </span>
+            <CodesignBadge
+              className={cn(item.missing && "bg-muted text-muted-foreground/50 shadow-none")}
+            />
           )}
         </div>
       )}
@@ -90,7 +83,7 @@ export function SpaceTile({
         <button
           type="button"
           onClick={() => handlers.onOpen(item)}
-          className="w-full rounded-xl text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="w-full rounded-lg text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <Thumbnail item={item} preview={preview} />
           <div className="mt-2 flex items-start gap-1.5 px-0.5">

@@ -7,66 +7,66 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --brand: oklch(0.62 0.198 256);
+  --background: oklch(0.982 0.002 247.84);
+  --foreground: oklch(0.226 0.004 264.49);
+  --brand: oklch(0.64 0.185 258.7);
   --brand-foreground: oklch(0.985 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --card: oklch(0.995 0.001 247.84);
+  --card-foreground: oklch(0.226 0.004 264.49);
+  --popover: oklch(0.995 0.001 247.84);
+  --popover-foreground: oklch(0.226 0.004 264.49);
+  --primary: oklch(0.226 0.004 264.49);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.955 0.003 264.49);
+  --secondary-foreground: oklch(0.26 0.006 271.19);
+  --muted: oklch(0.955 0.003 264.49);
+  --muted-foreground: oklch(0.51 0.008 264.49);
+  --accent: oklch(0.932 0.004 264.49);
+  --accent-foreground: oklch(0.226 0.004 264.49);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --border: oklch(0.885 0.005 264.49);
+  --input: oklch(0.885 0.005 264.49);
+  --ring: oklch(0.64 0.185 258.7);
+  --radius: 0.5rem;
+  --sidebar: oklch(0.965 0.003 264.49);
+  --sidebar-foreground: oklch(0.226 0.004 264.49);
+  --sidebar-primary: oklch(0.226 0.004 264.49);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-accent: oklch(0.925 0.005 264.49);
+  --sidebar-accent-foreground: oklch(0.226 0.004 264.49);
+  --sidebar-border: oklch(0.885 0.005 264.49);
+  --sidebar-ring: oklch(0.64 0.185 258.7);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --brand: oklch(0.68 0.17 250);
-  --brand-foreground: oklch(0.145 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
+  --background: oklch(0.192 0.004 264.49);
+  --foreground: oklch(0.964 0.002 247.84);
+  --brand: oklch(0.69 0.165 258.7);
+  --brand-foreground: oklch(0.17 0.005 264.49);
+  --card: oklch(0.226 0.004 264.49);
+  --card-foreground: oklch(0.964 0.002 247.84);
+  --popover: oklch(0.226 0.004 264.49);
+  --popover-foreground: oklch(0.964 0.002 247.84);
+  --primary: oklch(0.964 0.002 247.84);
+  --primary-foreground: oklch(0.192 0.004 264.49);
+  --secondary: oklch(0.26 0.006 271.19);
+  --secondary-foreground: oklch(0.964 0.002 247.84);
+  --muted: oklch(0.26 0.006 271.19);
+  --muted-foreground: oklch(0.66 0.008 264.49);
+  --accent: oklch(0.305 0.007 264.49);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --border: oklch(1 0 0 / 11%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.69 0.165 258.7);
+  --sidebar: oklch(0.21 0.004 264.49);
+  --sidebar-foreground: oklch(0.964 0.002 247.84);
+  --sidebar-primary: oklch(0.69 0.165 258.7);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent: oklch(0.285 0.006 264.49);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-border: oklch(1 0 0 / 11%);
+  --sidebar-ring: oklch(0.69 0.165 258.7);
 }
 
 @theme inline {
@@ -139,8 +139,9 @@
 /* Soft elevation for tiles that float above the launcher background. */
 .surface-float {
   box-shadow:
-    0 1px 2px rgba(16, 24, 40, 0.04),
-    0 12px 32px -12px rgba(16, 24, 40, 0.16);
+    0 0 0 1px color-mix(in oklch, var(--foreground) 4%, transparent),
+    0 1px 2px color-mix(in oklch, var(--foreground) 8%, transparent),
+    0 10px 24px -14px color-mix(in oklch, var(--foreground) 24%, transparent);
 }
 
 /* React Flow gives edges z-index 1001 and nodes their own inline z-index, but
@@ -179,4 +180,65 @@
 }
 .thin-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: color-mix(in oklch, var(--foreground) 38%, transparent);
+}
+
+@keyframes codesign-pixel-on {
+  0%,
+  100% {
+    opacity: 0.12;
+    transform: scale(0.88);
+  }
+  45%,
+  60% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+}
+
+@keyframes codesign-shimmer-text {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes codesign-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.codesign-loader-cell {
+  opacity: 0.12;
+  animation: codesign-pixel-on 650ms ease-in-out infinite;
+}
+
+.codesign-shimmer {
+  color: transparent;
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in oklch, var(--foreground) 38%, transparent) 35%,
+    var(--foreground) 50%,
+    color-mix(in oklch, var(--foreground) 38%, transparent) 65%
+  );
+  background-position: 200% 0;
+  background-size: 200% 100%;
+  background-clip: text;
+  animation: codesign-shimmer-text 1.4s linear infinite;
+}
+
+.codesign-fade-up {
+  animation: codesign-fade-up 300ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .codesign-loader-cell,
+  .codesign-shimmer,
+  .codesign-fade-up {
+    animation: none;
+  }
 }

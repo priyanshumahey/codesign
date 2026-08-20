@@ -1,14 +1,31 @@
+import { cn } from "@/lib/utils"
+
+/** A "C" drawn as a diagram: an orthogonal edge routed between two nodes. */
 export function CodesignMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">
-      <rect x="2" y="2.5" width="6.75" height="5.25" rx="1.6" fill="currentColor" />
-      <rect x="11.25" y="12.25" width="6.75" height="5.25" rx="1.6" fill="currentColor" />
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
       <path
-        d="M5.4 7.75v4.15a1.6 1.6 0 0 0 1.6 1.6h4.25"
+        d="M13.6 5.5H9A4.4 4.4 0 0 0 4.6 9.9v4.2A4.4 4.4 0 0 0 9 18.5h4.6"
         stroke="currentColor"
-        strokeWidth="1.5"
+        strokeWidth="2.1"
         strokeLinecap="round"
       />
+      <rect x="13.6" y="2.2" width="6.6" height="6.6" rx="2.1" fill="currentColor" />
+      <rect x="13.6" y="15.2" width="6.6" height="6.6" rx="2.1" fill="currentColor" />
     </svg>
+  )
+}
+
+/** The mark on a brand tile, for icon-sized placements. */
+export function CodesignBadge({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "grid size-10 place-items-center rounded-xl bg-brand text-brand-foreground shadow-sm",
+        className
+      )}
+    >
+      <CodesignMark className="size-[62%]" />
+    </span>
   )
 }
