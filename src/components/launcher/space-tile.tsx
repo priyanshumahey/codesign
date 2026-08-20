@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { MatchSummary } from "./match-summary"
 import type { SpacePreview } from "@/lib/preview"
 import { buildSpaceActions, type SpaceActionHandlers } from "./space-actions"
 import { SpaceThumbnail } from "./space-thumbnail"
@@ -97,6 +98,7 @@ export function SpaceTile({
                 {item.name}
               </p>
               <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{item.meta}</p>
+              <MatchSummary item={item} className="mt-0.5" />
             </div>
             {item.pinned && (
               <PushPin weight="fill" className="mt-0.5 size-3 shrink-0 text-amber-500" />

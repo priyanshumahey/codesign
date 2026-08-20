@@ -2,6 +2,7 @@ import { DotsThree, Folder, PushPin } from "@phosphor-icons/react"
 import { Fragment } from "react"
 
 import { CodesignMark } from "@/components/codesign-mark"
+import { MatchSummary } from "./match-summary"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -74,7 +75,7 @@ export function SpaceRow({
           </span>
 
           <span className="hidden min-w-0 flex-1 truncate text-[12px] text-muted-foreground md:block">
-            {location}
+            {item.matches?.length ? <MatchSummary item={item} /> : location}
           </span>
           <span className="w-24 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
             {item.meta}

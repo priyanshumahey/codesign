@@ -428,6 +428,106 @@ pub fn list_folder_spaces(path: String) -> Result<Vec<SpaceSummary>, String> {
     Ok(spaces)
 }
 
+/// Fields of a node worth searching, in the order they are reported.
+const SEARCHABLE_FIELDS: [&str; 5] = ["label", "text", "description", "owner", "link"];
+
+/// How many matching nodes are described per space before the rest are counted.
+const MAX_MATCHES_PER_SPACE: usize = 6;
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NodeMatch {
+    pub node_id: String,
+    pub kind: String,
+    /// Best display text for the node, whichever field matched.
+    pub label: String,
+    /// Which field the query hit, so the UI can say why a result is here.
+    pub field: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpaceMatch {
+    pub path: String,
+    pub name: String,
+    pub matches: Vec<NodeMatch>,
+    /// Total matching nodes, which may exceed `matches.len()`.
+    pub total: usize,
+}
+
+fn node_field(node: &serde_json::Value, field: &str) -> Option<String> {
+    node.get("data")?
+        .get(field)?
+        .as_str()
+        .map(|value| value.to_string())
+}
+
+/// Searches the contents of the given spaces for `query`, so the launcher can
+/// answer "which diagrams mention Redis?" rather than only matching filenames.
+#[tauri::command]
+pub fn search_spaces(paths: Vec<String>, query: String) -> Vec<SpaceMatch> {
+    let needle = query.trim().to_lowercase();
+    if needle.is_empty() {
+        return Vec::new();
+    }
+
+    let mut results = Vec::new();
+    for path in paths {
+        let target = PathBuf::from(&path);
+        let Ok(space) = read_space_file(&target) else {
+            continue;
+        };
+
+        let mut matches = Vec::new();
+        let mut total = 0usize;
+        for node in &space.document.nodes {
+            let hit = SEARCHABLE_FIELDS.iter().find_map(|field| {
+                let value = node_field(node, field)?;
+                value
+                    .to_lowercase()
+                    .contains(&needle)
+                    .then(|| (*field, value))
+            });
+            let Some((field, value)) = hit else { continue };
+
+            total += 1;
+            if matches.len() >= MAX_MATCHES_PER_SPACE {
+                continue;
+            }
+            let label = node_field(node, "label")
+                .or_else(|| node_field(node, "text"))
+                .filter(|text| !text.trim().is_empty())
+                .unwrap_or(value);
+            matches.push(NodeMatch {
+                node_id: node
+                    .get("id")
+                    .and_then(|id| id.as_str())
+                    .unwrap_or_default()
+                    .to_string(),
+                kind: node
+                    .get("type")
+                    .and_then(|kind| kind.as_str())
+                    .unwrap_or("service")
+                    .to_string(),
+                label,
+                field: field.to_string(),
+            });
+        }
+
+        if total > 0 {
+            results.push(SpaceMatch {
+                path,
+                name: space.name,
+                matches,
+                total,
+            });
+        }
+    }
+
+    results.sort_by(|a, b| b.total.cmp(&a.total).then_with(|| a.name.cmp(&b.name)));
+    results
+}
+
 #[tauri::command]
 pub fn reveal_in_file_manager(path: String) -> Result<(), String> {
     tauri_plugin_opener::reveal_item_in_dir(PathBuf::from(path)).map_err(|e| e.to_string())

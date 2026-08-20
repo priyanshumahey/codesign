@@ -1,15 +1,24 @@
+import { ArrowSquareOut } from "@phosphor-icons/react"
 import type { NodeProps } from "@xyflow/react"
 import { memo } from "react"
 
+import { openExternal, safeExternalUrl } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { useCanvasActions } from "../canvas-actions"
 import { NodeHandles } from "../handles"
 import { IconGraphic } from "../icon-graphic"
-import type { ServiceNodeData } from "../types"
+import {
+  resolveServiceStatus,
+  SERVICE_STATUS_LABELS,
+  SERVICE_STATUS_STYLES,
+  type ServiceNodeData,
+} from "../types"
 import { useInlineEdit } from "../use-inline-edit"
 
 function ServiceNodeBase({ id, data, selected }: NodeProps & { data: ServiceNodeData }) {
   const label = data.label ?? ""
+  const status = resolveServiceStatus(data.status)
+  const link = safeExternalUrl(data.link)
   const { patchNodeData } = useCanvasActions()
   const edit = useInlineEdit<HTMLInputElement>({
     value: label,
@@ -40,6 +49,28 @@ function ServiceNodeBase({ id, data, selected }: NodeProps & { data: ServiceNode
           mono={data.iconMono}
           className="size-9"
         />
+        {status && (
+          <span
+            title={SERVICE_STATUS_LABELS[status]}
+            className={cn(
+              "absolute -right-1 -top-1 size-2.5 rounded-full ring-2 ring-card",
+              SERVICE_STATUS_STYLES[status]
+            )}
+          />
+        )}
+        {link && (
+          <button
+            type="button"
+            title="Open link"
+            onClick={(event) => {
+              event.stopPropagation()
+              void openExternal(link)
+            }}
+            className="nodrag nopan absolute -left-1 -top-1 grid size-4.5 place-items-center rounded-full border border-border/80 bg-card text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover/node:opacity-100"
+          >
+            <ArrowSquareOut className="size-2.5" />
+          </button>
+        )}
       </div>
 
       {edit.editing ? (
@@ -64,6 +95,11 @@ function ServiceNodeBase({ id, data, selected }: NodeProps & { data: ServiceNode
           >
             {label}
           </span>
+          {data.owner && (
+            <span className="max-w-full truncate text-center text-[9px] leading-tight text-muted-foreground/80">
+              {data.owner}
+            </span>
+          )}
           {data.description && (
             <span className="max-w-full truncate text-center text-[9px] leading-tight text-muted-foreground">
               {data.description}

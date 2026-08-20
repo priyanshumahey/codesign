@@ -11,9 +11,10 @@ import {
 } from "@xyflow/react"
 
 import { fromDocument, toDocument } from "./document"
+import { readSubgraph, writeSubgraph } from "./clipboard"
 import { peekPendingIconDrag, setPendingIconDrag } from "./drag-payload"
 import { retargetEdges } from "./edge-routing"
-import { absolutePosition, findBoundaryAt, nodeSize } from "./geometry"
+import { absolutePosition, findBoundaryAt, nodeSize, sortByBoundaryParenting } from "./geometry"
 import { reconcileEdges, reconcileNodes } from "./reconcile"
 import {
   BOUNDARY_COLORS,
@@ -42,6 +43,15 @@ let idCounter = 0
 const SESSION = Math.random().toString(36).slice(2, 6)
 const nextId = (prefix: string) =>
   `${prefix}-${Date.now().toString(36)}-${SESSION}${idCounter++}`
+
+/** Selected ids plus every node nested inside them, however deeply. */
+function withDescendants(nodes: Node[]): Set<string> {
+  const picked = new Set(nodes.filter((node) => node.selected).map((node) => node.id))
+  for (const node of sortByBoundaryParenting(nodes)) {
+    if (node.parentId && picked.has(node.parentId)) picked.add(node.id)
+  }
+  return picked
+}
 
 export function useSpaceCanvas(initial: Snapshot) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>(initial.nodes)
@@ -297,6 +307,90 @@ export function useSpaceCanvas(initial: Snapshot) {
     setEdges((list) => list.map((edge) => ({ ...edge, selected: true })))
   }, [setNodes, setEdges])
 
+  /** Copies the selection, plus everything nested inside a selected boundary. */
+  const copySelection = useCallback(() => {
+    const current = nodesRef.current
+    const picked = withDescendants(current)
+    if (picked.size === 0) return false
+
+    const nodes = current
+      .filter((node) => picked.has(node.id))
+      .map((node) => {
+        const { selected: _selected, dragging: _dragging, measured: _measured, ...rest } = node
+        // A node whose boundary is not coming along is stored in absolute
+        // coordinates, so it lands correctly in any space.
+        if (rest.parentId && picked.has(rest.parentId)) return rest
+        const { parentId: _parentId, extent: _extent, ...detached } = rest
+        return { ...detached, position: absolutePosition(node, current) }
+      })
+
+    const edges = edgesRef.current
+      .filter((edge) => picked.has(edge.source) && picked.has(edge.target))
+      .map(({ selected: _selected, ...edge }) => edge)
+
+    writeSubgraph(nodes, edges)
+    return true
+  }, [])
+
+  const cutSelection = useCallback(() => {
+    if (copySelection()) deleteSelection()
+  }, [copySelection, deleteSelection])
+
+  const paste = useCallback(async () => {
+    const payload = await readSubgraph()
+    if (!payload?.nodes.length) return
+
+    const idMap = new Map(payload.nodes.map((node) => [node.id, nextId("paste")]))
+    const isRoot = (node: Node) => !node.parentId || !idMap.has(node.parentId)
+
+    // Drop the copy under the middle of the viewport rather than at the
+    // coordinates it came from, which may be off-screen in this space.
+    const roots = payload.nodes.filter(isRoot)
+    let dx = 0
+    let dy = 0
+    if (roots.length > 0) {
+      const minX = Math.min(...roots.map((node) => node.position.x))
+      const minY = Math.min(...roots.map((node) => node.position.y))
+      const maxX = Math.max(...roots.map((node) => node.position.x + nodeSize(node).width))
+      const maxY = Math.max(...roots.map((node) => node.position.y + nodeSize(node).height))
+      const target = screenToFlowPosition({
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+      })
+      dx = target.x - (minX + maxX) / 2
+      dy = target.y - (minY + maxY) / 2
+    }
+
+    const pasted = payload.nodes.map((node) => {
+      const { parentId, extent: _extent, ...rest } = node
+      const parent = parentId && idMap.has(parentId) ? idMap.get(parentId)! : null
+      return {
+        ...rest,
+        id: idMap.get(node.id)!,
+        position: parent
+          ? node.position
+          : { x: node.position.x + dx, y: node.position.y + dy },
+        ...(parent ? { parentId: parent, extent: "parent" as const } : {}),
+        selected: true,
+      }
+    })
+
+    const pastedEdges = payload.edges.map((edge) => ({
+      ...edge,
+      id: nextId("edge"),
+      source: idMap.get(edge.source)!,
+      target: idMap.get(edge.target)!,
+      selected: false,
+    }))
+
+    snapshot()
+    setNodes((list) => [
+      ...list.map((node) => (node.selected ? { ...node, selected: false } : node)),
+      ...pasted,
+    ])
+    setEdges((list) => [...list, ...pastedEdges])
+  }, [screenToFlowPosition, setNodes, setEdges, snapshot])
+
   const clearSelection = useCallback(() => {
     setNodes((list) => list.map((node) => ({ ...node, selected: false })))
     setEdges((list) => list.map((edge) => ({ ...edge, selected: false })))
@@ -372,6 +466,9 @@ export function useSpaceCanvas(initial: Snapshot) {
     checkpoint: snapshot,
     deleteSelection,
     duplicateSelection,
+    copySelection,
+    cutSelection,
+    paste,
     selectAll,
     clearSelection,
     selectOnly,

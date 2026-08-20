@@ -13,7 +13,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::doc::{
     self, Doc, Edge, Node, NodeKind, Point, Size, BOUNDARY_COLORS, BOUNDARY_SIZE, EDGE_DIRECTIONS,
-    HTTP_METHODS, NOTE_SIZE, SERVICE_SIZE, SYSTEM_EDGE,
+    HTTP_METHODS, NOTE_SIZE, SERVICE_SIZE, SERVICE_STATUSES, SYSTEM_EDGE,
 };
 use crate::icons::{self, IconEntry, IconIndex};
 use crate::ids::IdGen;
@@ -110,6 +110,11 @@ fn apply_one(doc: &mut Doc, op: &Op, ctx: &mut ApplyCtx) -> Step {
             let parent = optional_boundary(doc, aliases, args.parent.as_deref())?;
             let (icon, matched) = resolve_icon(icons, &args.icon);
             let at = resolve_placement(doc, parent.as_deref(), args.position, SERVICE_SIZE);
+            let status = args
+                .status
+                .as_deref()
+                .map(|value| one_of(value, &SERVICE_STATUSES, "status"))
+                .transpose()?;
 
             let mut data = doc::DataMap::new();
             doc::set_data_str(&mut data, "label", args.label.clone());
@@ -121,6 +126,15 @@ fn apply_one(doc: &mut Doc, op: &Op, ctx: &mut ApplyCtx) -> Step {
             }
             if let Some(description) = &args.description {
                 doc::set_data_str(&mut data, "description", description.clone());
+            }
+            if let Some(link) = &args.link {
+                doc::set_data_str(&mut data, "link", link.clone());
+            }
+            if let Some(owner) = &args.owner {
+                doc::set_data_str(&mut data, "owner", owner.clone());
+            }
+            if let Some(status) = status {
+                doc::set_data_str(&mut data, "status", status);
             }
 
             let id = ids.next("node");
@@ -202,6 +216,12 @@ fn apply_one(doc: &mut Doc, op: &Op, ctx: &mut ApplyCtx) -> Step {
                 .as_deref()
                 .map(|value| one_of(value, &BOUNDARY_COLORS, "color"))
                 .transpose()?;
+            let status = args
+                .status
+                .as_deref()
+                .filter(|value| !value.is_empty())
+                .map(|value| one_of(value, &SERVICE_STATUSES, "status"))
+                .transpose()?;
             let icon = args.icon.as_deref().map(|value| resolve_icon(icons, value));
 
             let node = doc.node_mut(&id).expect("resolved above");
@@ -210,6 +230,21 @@ fn apply_one(doc: &mut Doc, op: &Op, ctx: &mut ApplyCtx) -> Step {
             }
             if let Some(description) = &args.description {
                 doc::set_data_str(&mut node.data, "description", description.clone());
+            }
+            // An empty string clears optional metadata rather than storing "".
+            if let Some(link) = &args.link {
+                set_or_clear(&mut node.data, "link", link);
+            }
+            if let Some(owner) = &args.owner {
+                set_or_clear(&mut node.data, "owner", owner);
+            }
+            if args.status.is_some() {
+                match status {
+                    Some(status) => doc::set_data_str(&mut node.data, "status", status),
+                    None => {
+                        node.data.remove("status");
+                    }
+                }
             }
             if let Some(text) = &args.text {
                 doc::set_data_str(&mut node.data, "text", text.clone());
@@ -624,6 +659,15 @@ fn one_of<'a>(value: &'a str, allowed: &[&str], field: &str) -> Result<&'a str, 
             "{field} \"{value}\" is not valid — use one of: {}",
             allowed.join(", ")
         ))
+    }
+}
+
+/// Optional metadata: a blank value removes the key instead of storing "".
+fn set_or_clear(data: &mut doc::DataMap, key: &str, value: &str) {
+    if value.is_empty() {
+        data.remove(key);
+    } else {
+        doc::set_data_str(data, key, value);
     }
 }
 

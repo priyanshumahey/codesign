@@ -4,6 +4,9 @@ type Options = {
   onUndo: () => void
   onRedo: () => void
   onDuplicate: () => void
+  onCopy: () => void
+  onCut: () => void
+  onPaste: () => void
   onSelectAll: () => void
   onDelete: () => void
   onSave: () => void
@@ -28,6 +31,9 @@ export function useCanvasShortcuts({
   onUndo,
   onRedo,
   onDuplicate,
+  onCopy,
+  onCut,
+  onPaste,
   onSelectAll,
   onDelete,
   onSave,
@@ -82,6 +88,18 @@ export function useCanvasShortcuts({
           event.preventDefault()
           onDuplicate()
           break
+        case "c":
+          event.preventDefault()
+          onCopy()
+          break
+        case "x":
+          event.preventDefault()
+          onCut()
+          break
+        case "v":
+          event.preventDefault()
+          onPaste()
+          break
         case "a":
           event.preventDefault()
           onSelectAll()
@@ -99,6 +117,9 @@ export function useCanvasShortcuts({
     onUndo,
     onRedo,
     onDuplicate,
+    onCopy,
+    onCut,
+    onPaste,
     onSelectAll,
     onDelete,
     onSave,

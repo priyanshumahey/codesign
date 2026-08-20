@@ -62,6 +62,28 @@ export const addFolder = (path: string) => invoke<void>("add_folder", { path })
 export const listFolderSpaces = (path: string) =>
   invoke<SpaceSummary[]>("list_folder_spaces", { path })
 
+/** Which node field a search hit, so the UI can explain the result. */
+export type MatchField = "label" | "text" | "description" | "owner" | "link"
+
+export type NodeMatch = {
+  nodeId: string
+  kind: string
+  label: string
+  field: MatchField
+}
+
+export type SpaceMatch = {
+  path: string
+  name: string
+  matches: NodeMatch[]
+  /** May exceed `matches.length` — the rest are counted, not described. */
+  total: number
+}
+
+/** Searches inside the given spaces, not just their filenames. */
+export const searchSpaces = (paths: string[], query: string) =>
+  invoke<SpaceMatch[]>("search_spaces", { paths, query })
+
 export const revealInFileManager = (path: string) =>
   invoke<void>("reveal_in_file_manager", { path })
 

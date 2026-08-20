@@ -133,6 +133,9 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
     onUndo: canvas.undo,
     onRedo: canvas.redo,
     onDuplicate: canvas.duplicateSelection,
+    onCopy: () => void canvas.copySelection(),
+    onCut: canvas.cutSelection,
+    onPaste: () => void canvas.paste(),
     onSelectAll: canvas.selectAll,
     onDelete: canvas.deleteSelection,
     onSave: () => void persistence.flush(),
@@ -300,6 +303,7 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
                       { review: true }
                     )
                   }}
+                  onCopy={() => void canvas.copySelection()}
                   onOpenCopilot={() => setCopilotOpen(true)}
                 />
               </Panel>

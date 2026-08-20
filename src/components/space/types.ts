@@ -42,7 +42,35 @@ export type ServiceNodeData = {
   iconMono?: boolean
   label: string
   description?: string
+  /** Repo, runbook or dashboard backing this component. */
+  link?: string
+  /** Team or person accountable for it. */
+  owner?: string
+  status?: ServiceStatus
   [key: string]: unknown
+}
+
+export const SERVICE_STATUSES = ["live", "planned", "degraded", "deprecated"] as const
+
+export type ServiceStatus = (typeof SERVICE_STATUSES)[number]
+
+export const SERVICE_STATUS_LABELS: Record<ServiceStatus, string> = {
+  live: "Live",
+  planned: "Planned",
+  degraded: "Degraded",
+  deprecated: "Deprecated",
+}
+
+/** Dot colour per status, tuned to read on light and dark. */
+export const SERVICE_STATUS_STYLES: Record<ServiceStatus, string> = {
+  live: "bg-emerald-500",
+  planned: "bg-sky-500",
+  degraded: "bg-amber-500",
+  deprecated: "bg-rose-500",
+}
+
+export function resolveServiceStatus(value: unknown): ServiceStatus | null {
+  return SERVICE_STATUSES.find((status) => status === value) ?? null
 }
 
 export type BoundaryNodeData = {

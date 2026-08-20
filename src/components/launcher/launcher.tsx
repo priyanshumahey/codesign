@@ -43,6 +43,7 @@ import {
 } from "@/lib/spaces"
 import { DeleteDialog, RenameDialog } from "./dialogs"
 import { LauncherSidebar } from "./launcher-sidebar"
+import { useSpaceSearch } from "./use-space-search"
 import type { SpaceActionHandlers } from "./space-actions"
 import { SpaceRow } from "./space-row"
 import { SpaceTile } from "./space-tile"
@@ -156,14 +157,28 @@ export function Launcher({ onOpenSpace }: { onOpenSpace: (space: SpaceFile) => v
       }
     }
 
+    return source
+  }, [view, folderSpaces, recents, onDisk])
+
+  // Derived from the UNFILTERED list: feeding results back in would loop.
+  const searchable = useMemo(
+    () => items.filter((item) => item.kind === "file" && !item.missing).map((item) => item.path),
+    [items]
+  )
+  const contentMatches = useSpaceSearch(searchable, query)
+
+  const visible = useMemo<LauncherItem[]>(() => {
     const needle = query.trim().toLowerCase()
     const filtered = needle
-      ? source.filter(
-          (item) =>
+      ? items.flatMap((item) => {
+          const match = contentMatches.get(item.path)
+          const named =
             item.name.toLowerCase().includes(needle) ||
             item.path.toLowerCase().includes(needle)
-        )
-      : source
+          if (!named && !match) return []
+          return [{ ...item, matches: match?.matches, matchTotal: match?.total }]
+        })
+      : items
 
     return [...filtered].sort((a, b) => {
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
@@ -171,15 +186,15 @@ export function Launcher({ onOpenSpace }: { onOpenSpace: (space: SpaceFile) => v
       if (sort === "modified") return (b.modified ?? 0) - (a.modified ?? 0)
       return b.lastOpened - a.lastOpened
     })
-  }, [view, folderSpaces, recents, onDisk, query, sort])
+  }, [items, contentMatches, query, sort])
 
   const previews = useSpacePreviews(
     useMemo(
       () =>
-        items
+        visible
           .filter((item) => item.kind === "file" && !item.missing)
           .map((item) => item.path),
-      [items]
+      [visible]
     )
   )
 
@@ -258,7 +273,7 @@ export function Launcher({ onOpenSpace }: { onOpenSpace: (space: SpaceFile) => v
   const subtitle =
     view.kind === "folder"
       ? shortenPath(view.path, home)
-      : `${items.length} ${items.length === 1 ? "space" : "spaces"}`
+      : `${visible.length} ${visible.length === 1 ? "space" : "spaces"}`
 
   return (
     <div className="flex min-h-0 flex-1 bg-background">
@@ -350,7 +365,7 @@ export function Launcher({ onOpenSpace }: { onOpenSpace: (space: SpaceFile) => v
           )}
 
           <div className="min-h-0 flex-1 overflow-y-auto">
-            {items.length === 0 ? (
+            {visible.length === 0 ? (
               <EmptyState
                 query={query}
                 view={view}
@@ -360,7 +375,7 @@ export function Launcher({ onOpenSpace }: { onOpenSpace: (space: SpaceFile) => v
               />
             ) : layout === "grid" ? (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(196px,1fr))] gap-x-4 gap-y-5 p-5">
-                {items.map((item) => (
+                {visible.map((item) => (
                   <SpaceTile
                     key={item.path}
                     item={item}
@@ -380,7 +395,7 @@ export function Launcher({ onOpenSpace }: { onOpenSpace: (space: SpaceFile) => v
                   </span>
                   <span className="w-6 shrink-0" aria-hidden />
                 </div>
-                {items.map((item) => (
+                {visible.map((item) => (
                   <SpaceRow
                     key={item.path}
                     item={item}

@@ -1,4 +1,4 @@
-import type { EntryKind } from "@/lib/spaces"
+import type { EntryKind, NodeMatch } from "@/lib/spaces"
 
 export type LauncherView =
   | { kind: "recents" }
@@ -17,6 +17,9 @@ export type LauncherItem = {
   tracked: boolean
   lastOpened: number
   modified: number | null
+  /** Nodes inside the space that matched the current search, if any. */
+  matches?: NodeMatch[]
+  matchTotal?: number
 }
 
 export type SortKey = "opened" | "name" | "modified"

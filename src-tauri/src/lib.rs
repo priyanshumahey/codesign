@@ -23,6 +23,7 @@ pub fn run() {
             spaces::set_pinned,
             spaces::add_folder,
             spaces::list_folder_spaces,
+            spaces::search_spaces,
             spaces::reveal_in_file_manager,
             spaces::default_space_dir,
             ops::apply_ops,

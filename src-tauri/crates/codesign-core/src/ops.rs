@@ -47,6 +47,11 @@ schema_enum!(
     [Slate, Sky, Violet, Emerald, Amber, Rose]
 );
 schema_enum!(NoteVariantChoice, "lowercase", [Heading, Body]);
+schema_enum!(
+    ServiceStatusChoice,
+    "lowercase",
+    [Live, Planned, Degraded, Deprecated]
+);
 
 /// Add a service node — a box with an icon representing a component.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -58,6 +63,16 @@ pub struct CreateService {
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// Link to the repo, runbook or dashboard that backs this component.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub link: Option<String>,
+    /// Team or person accountable for this component.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
+    /// One of: live, planned, degraded, deprecated.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<ServiceStatusChoice>")]
+    pub status: Option<String>,
     /// Boundary to place this inside. Omit for top level.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<Selector>,
@@ -122,6 +137,16 @@ pub struct UpdateNode {
     /// New icon id or search term. Only meaningful for service nodes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
+    /// Link to the repo, runbook or dashboard. Only for service nodes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub link: Option<String>,
+    /// Team or person accountable. Only for service nodes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
+    /// One of: live, planned, degraded, deprecated. Only for service nodes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<ServiceStatusChoice>")]
+    pub status: Option<String>,
 }
 
 /// Move a node to an absolute canvas position.

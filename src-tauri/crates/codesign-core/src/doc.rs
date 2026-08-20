@@ -30,6 +30,7 @@ pub const NOTE_SIZE: Size = Size {
 
 pub const BOUNDARY_COLORS: [&str; 6] = ["slate", "sky", "violet", "emerald", "amber", "rose"];
 pub const EDGE_DIRECTIONS: [&str; 4] = ["forward", "backward", "both", "none"];
+pub const SERVICE_STATUSES: [&str; 4] = ["live", "planned", "degraded", "deprecated"];
 pub const HTTP_METHODS: [&str; 10] = [
     "GET", "POST", "PUT", "PATCH", "DELETE", "WS", "GRPC", "EVENT", "QUERY", "MUTATION",
 ];

@@ -1,16 +1,18 @@
-import { ChatCircleDots, Question, Sparkle } from "@phosphor-icons/react"
+import { ChatCircleDots, Copy, Question, Sparkle } from "@phosphor-icons/react"
 
 export function SelectionActions({
   count,
   busy,
   onExplain,
   onImprove,
+  onCopy,
   onOpenCopilot,
 }: {
   count: number
   busy: boolean
   onExplain: () => void
   onImprove: () => void
+  onCopy: () => void
   onOpenCopilot: () => void
 }) {
   return (
@@ -42,6 +44,15 @@ export function SelectionActions({
         Improve
       </button>
       <span className="mx-0.5 h-5 w-px bg-border/70" aria-hidden />
+      <button
+        type="button"
+        onClick={onCopy}
+        aria-label="Copy selection"
+        title="Copy selection (⌘C) — paste into any space"
+        className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <Copy className="size-3.5" />
+      </button>
       <button
         type="button"
         onClick={onOpenCopilot}

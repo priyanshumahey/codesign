@@ -1,6 +1,8 @@
+import { ArrowSquareOut } from "@phosphor-icons/react"
 import type { Node } from "@xyflow/react"
 
 import { SegmentedControl } from "@/components/ui/segmented-control"
+import { openExternal, safeExternalUrl } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { useCanvasActions } from "../canvas-actions"
 import {
@@ -9,6 +11,10 @@ import {
   BOUNDARY_NODE_TYPE,
   NOTE_NODE_TYPE,
   resolveBoundaryColor,
+  resolveServiceStatus,
+  SERVICE_STATUS_LABELS,
+  SERVICE_STATUS_STYLES,
+  SERVICE_STATUSES,
   type BoundaryNodeData,
   type NoteNodeData,
   type ServiceNodeData,
@@ -80,6 +86,8 @@ export function NodeInspector({ node }: { node: Node }) {
   }
 
   const data = node.data as ServiceNodeData
+  const status = resolveServiceStatus(data.status)
+  const link = safeExternalUrl(data.link)
   return (
     <div className="flex flex-col gap-5">
       <Section>
@@ -91,7 +99,53 @@ export function NodeInspector({ node }: { node: Node }) {
         />
       </Section>
 
+      <Section title="Ownership">
+        <TextField
+          label="Owner"
+          value={data.owner ?? ""}
+          placeholder="Platform team"
+          onCommit={(owner) => patch({ owner })}
+        />
+        <Field label="Status" hint="Click the active status again to clear it.">
+          <div className="flex flex-wrap gap-1.5">
+            {SERVICE_STATUSES.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => patch({ status: status === option ? "" : option })}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] transition-colors",
+                  status === option
+                    ? "border-foreground/25 bg-muted text-foreground"
+                    : "border-transparent bg-muted/55 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <span className={cn("size-1.5 rounded-full", SERVICE_STATUS_STYLES[option])} />
+                {SERVICE_STATUS_LABELS[option]}
+              </button>
+            ))}
+          </div>
+        </Field>
+      </Section>
+
       <Section title="Notes">
+        <TextField
+          label="Link"
+          value={data.link ?? ""}
+          placeholder="github.com/acme/api-gateway"
+          hint={data.link && !link ? "Only http and https links can be opened." : undefined}
+          onCommit={(value) => patch({ link: value })}
+        />
+        {link && (
+          <button
+            type="button"
+            onClick={() => void openExternal(link)}
+            className="-mt-1 flex items-center gap-1.5 self-start text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowSquareOut className="size-3.5" />
+            Open link
+          </button>
+        )}
         <AreaField
           label="Description"
           value={data.description ?? ""}
