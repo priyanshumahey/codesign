@@ -83,13 +83,13 @@ function ServiceNodeBase({ id, data, selected }: NodeProps & { data: ServiceNode
             if (event.key === "Enter") edit.commit()
             else if (event.key === "Escape") edit.cancel()
           }}
-          className="nodrag nopan w-full rounded-md border border-foreground/30 bg-background px-1.5 py-0.5 text-center text-[11px] font-medium outline-none"
+          className="nodrag nopan w-full rounded-md border border-foreground/30 bg-background px-1.5 py-0.5 text-center text-[12px] font-medium outline-none"
         />
       ) : (
         <div className="flex w-full flex-col items-center gap-0.5">
           <span
             className={cn(
-              "max-w-full truncate rounded px-1 text-center text-[11px] font-medium leading-tight",
+              "max-w-full break-words rounded px-1 text-center text-[12px] font-medium leading-tight",
               selected && "bg-brand/8"
             )}
           >
