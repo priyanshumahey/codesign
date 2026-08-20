@@ -9,9 +9,9 @@ export function Section({
   children: React.ReactNode
 }) {
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-2.5">
       {title && (
-        <h3 className="text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground/80">
+        <h3 className="text-[11px] font-medium text-foreground/80">
           {title}
         </h3>
       )}
@@ -30,8 +30,8 @@ export function Field({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-[11px] font-medium text-foreground/70">{label}</span>
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] font-medium text-muted-foreground">{label}</span>
       {children}
       {hint && (
         <p className="text-[10px] leading-relaxed text-muted-foreground/70">{hint}</p>
@@ -66,7 +66,11 @@ export function TextField({
         onKeyDown={(event) => {
           if (event.key === "Enter") event.currentTarget.blur()
         }}
-        className={mono ? "h-8 font-mono text-[12px]" : "h-8 text-[13px]"}
+        className={
+          mono
+            ? "h-8 border-transparent bg-muted/55 font-mono text-[12px] shadow-none focus-visible:border-foreground/20"
+            : "h-8 border-transparent bg-muted/55 text-[12px] shadow-none focus-visible:border-foreground/20"
+        }
       />
     </Field>
   )
@@ -99,8 +103,8 @@ export function AreaField({
         onBlur={(event) => onCommit(event.target.value)}
         className={
           mono
-            ? "min-h-14 resize-none font-mono text-[12px] leading-relaxed"
-            : "min-h-14 resize-none text-[13px] leading-relaxed"
+            ? "min-h-14 resize-none border-transparent bg-muted/55 font-mono text-[11px] leading-relaxed shadow-none focus-visible:border-foreground/20"
+            : "min-h-14 resize-none border-transparent bg-muted/55 text-[12px] leading-relaxed shadow-none focus-visible:border-foreground/20"
         }
       />
     </Field>

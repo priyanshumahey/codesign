@@ -23,7 +23,7 @@ function BoundaryNodeBase({ id, data, selected }: NodeProps & { data: BoundaryNo
   return (
     <div
       className={cn(
-        "group/node relative size-full rounded-2xl border-2 border-dashed transition-colors",
+        "group/node relative size-full rounded-xl border-2 border-dashed transition-colors",
         styles.fill,
         selected ? styles.borderSelected : styles.border
       )}

@@ -34,9 +34,9 @@ export function SpaceShell({
   })
 
   return (
-    <div className="flex min-h-0 flex-1 px-2 pb-2">
-      <div className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-background shadow-sm">
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border/60 px-3">
+    <div className="flex min-h-0 flex-1">
+      <div className="flex h-full w-full flex-col overflow-hidden bg-background">
+        <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border/70 px-3">
           <Button variant="ghost" size="sm" onClick={onBack} className="gap-1.5">
             <ArrowLeft />
             Spaces

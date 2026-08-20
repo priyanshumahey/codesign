@@ -1,5 +1,6 @@
 import type { Node } from "@xyflow/react"
 
+import { SegmentedControl } from "@/components/ui/segmented-control"
 import { cn } from "@/lib/utils"
 import { useCanvasActions } from "../canvas-actions"
 import {
@@ -65,23 +66,14 @@ export function NodeInspector({ node }: { node: Node }) {
           onCommit={(text) => patch({ text })}
         />
         <Field label="Style">
-          <div className="flex items-center gap-1 rounded-xl bg-muted/70 p-1">
-            {(["body", "heading"] as const).map((variant) => (
-              <button
-                key={variant}
-                type="button"
-                onClick={() => patch({ variant })}
-                className={cn(
-                  "flex-1 rounded-lg px-2 py-1 text-[12px] font-medium capitalize transition-colors",
-                  (data.variant ?? "body") === variant
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {variant}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            value={data.variant ?? "body"}
+            options={[
+              { value: "body", label: "Body" },
+              { value: "heading", label: "Heading" },
+            ]}
+            onValueChange={(variant) => patch({ variant })}
+          />
         </Field>
       </Section>
     )
@@ -89,7 +81,7 @@ export function NodeInspector({ node }: { node: Node }) {
 
   const data = node.data as ServiceNodeData
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <Section>
         <TextField
           label="Name"

@@ -2,6 +2,7 @@ import {
   BaseEdge,
   EdgeLabelRenderer,
   getSmoothStepPath,
+  Position,
   type EdgeProps,
 } from "@xyflow/react"
 import { memo, useEffect, useRef, useState } from "react"
@@ -51,7 +52,7 @@ function EdgeLabelInput({
       }}
       placeholder="Label"
       size={Math.max(draft.length, 6)}
-      className="nodrag nopan rounded-md border border-foreground/40 bg-card px-1.5 py-0.5 text-center text-[10px] font-medium text-foreground outline-none shadow-sm"
+      className="nodrag nopan max-w-64 rounded-md border border-foreground/40 bg-card px-1.5 py-0.5 text-center text-[10px] font-medium text-foreground outline-none shadow-sm"
     />
   )
 }
@@ -81,11 +82,16 @@ function SystemEdgeBase({
     targetPosition,
     borderRadius: 14,
     offset: 22,
+    stepPosition: data?.labelStep ?? 0.5,
   })
 
   const { label, method } = data ?? {}
   const direction = resolveEdgeDirection(data?.direction)
   const editing = editingEdge?.id === id ? editingEdge : null
+
+  // A vertical run is crowded across x, a horizontal one across y.
+  const shift = data?.labelShift ?? 0
+  const acrossX = sourcePosition === Position.Top || sourcePosition === Position.Bottom
 
   return (
     <>
@@ -108,7 +114,7 @@ function SystemEdgeBase({
         <EdgeLabelRenderer>
           <div
             style={{
-              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              transform: `translate(-50%, -50%) translate(${labelX + (acrossX ? shift : 0)}px, ${labelY + (acrossX ? 0 : shift)}px)`,
             }}
             // The edge label layer is pointer-events:none / user-select:none.
             className="pointer-events-auto absolute select-text"
@@ -121,20 +127,21 @@ function SystemEdgeBase({
                   event.stopPropagation()
                   startEdgeLabelEdit(id)
                 }}
+                title={[method, label].filter(Boolean).join(" ")}
                 className={cn(
                   // `bg-card` rather than `bg-background`: in dark mode the
                   // background is the same colour as the canvas, so the chip
                   // disappears into it.
-                  "nodrag nopan flex cursor-text items-center gap-1 rounded-md border bg-card px-1.5 py-0.5 text-[10px] font-medium text-foreground shadow-sm",
+                  "nodrag nopan flex max-w-64 cursor-text items-center gap-1 rounded-md border bg-card px-1.5 py-0.5 text-[10px] font-medium text-foreground shadow-sm",
                   selected ? "border-foreground/50" : "border-foreground/15"
                 )}
               >
                 {method && (
-                  <span className="rounded bg-muted px-1 font-mono text-[9px] font-semibold uppercase text-foreground/70">
+                  <span className="shrink-0 rounded bg-muted px-1 font-mono text-[9px] font-semibold uppercase text-foreground/70">
                     {method}
                   </span>
                 )}
-                {label}
+                {label && <span className="min-w-0 truncate">{label}</span>}
               </div>
             )}
           </div>

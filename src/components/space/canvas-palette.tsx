@@ -54,7 +54,7 @@ function Section({
             open && "rotate-90"
           )}
         />
-        <span className="flex-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        <span className="flex-1 text-[10px] font-medium text-muted-foreground">
           {title}
         </span>
         <span className="text-[10px] tabular-nums text-muted-foreground/70">{count}</span>
@@ -80,9 +80,9 @@ function Tile({
       onDragEnd={() => setPendingIconDrag(null)}
       onDoubleClick={() => onAdd(entry)}
       title={entry.name}
-      className="group/tile flex min-w-0 cursor-grab flex-col items-center gap-1.5 rounded-lg border border-transparent px-1 py-2 transition-colors hover:border-border/70 hover:bg-muted/60 active:cursor-grabbing"
+      className="group/tile flex min-w-0 cursor-grab flex-col items-center gap-1.5 rounded-lg px-1 py-2 transition-colors hover:bg-muted/65 active:cursor-grabbing"
     >
-      <span className="grid size-8 place-items-center transition-transform duration-150 group-hover/tile:scale-110">
+      <span className="grid size-8 place-items-center">
         {preview}
       </span>
       <span className="w-full truncate text-center text-[9px] leading-tight text-muted-foreground group-hover/tile:text-foreground">
@@ -255,7 +255,7 @@ export function CanvasPalette({ onAdd }: { onAdd: (entry: IconEntry) => void }) 
     <aside
       ref={resize.asideRef}
       style={{ width: resize.width }}
-      className="relative flex shrink-0 flex-col border-r border-border/60"
+      className="relative flex shrink-0 flex-col border-r border-border/70 bg-background"
     >
       <div
         role="separator"
@@ -277,14 +277,14 @@ export function CanvasPalette({ onAdd }: { onAdd: (entry: IconEntry) => void }) 
           resize.dragging && "after:bg-foreground/40"
         )}
       />
-      <div className="border-b border-border/60 p-2.5">
+      <div className="border-b border-border/70 p-2.5">
         <div className="relative">
           <MagnifyingGlass className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={manifest ? `Search ${manifest.count} icons` : "Search icons"}
-            className="h-8 pl-8 text-[13px]"
+            className="h-8 border-transparent bg-muted/55 pl-8 text-[12px] shadow-none focus-visible:border-foreground/20"
           />
         </div>
       </div>

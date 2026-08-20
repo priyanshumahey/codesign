@@ -65,6 +65,10 @@ export type SystemEdgeData = {
   request?: string
   response?: string
   direction?: EdgeDirection
+  /** Where the label rides along the path. Computed per render, never saved. */
+  labelStep?: number
+  /** Nudge across the run when the path itself has no clear spot. */
+  labelShift?: number
   [key: string]: unknown
 }
 

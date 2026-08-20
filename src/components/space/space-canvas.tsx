@@ -19,9 +19,11 @@ import { CopilotPanel } from "./copilot/copilot-panel"
 import { useCopilot } from "./copilot/use-copilot"
 import { fromDocument, toDocument } from "./document"
 import { EdgeContextMenu, type EdgeMenuTarget } from "./edge-context-menu"
+import { layoutEdgeLabels, type Placement } from "./edge-labels"
 import { DEFAULT_EDGE_OPTIONS, EDGE_TYPES, NODE_TYPES } from "./flow-config"
 import { sortByBoundaryParenting } from "./geometry"
 import { Inspector } from "./inspector/inspector"
+import { SelectionActions } from "./selection-actions"
 import { resolveEdgeDirection, type IconEntry } from "./types"
 import { useCanvasShortcuts } from "./use-canvas-shortcuts"
 import { useSpaceCanvas } from "./use-space-canvas"
@@ -95,6 +97,35 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
 
   const selectedEdges = canvas.edges.filter((edge) => edge.selected)
   const selectedNodes = canvas.nodes.filter((node) => node.selected)
+  const copilotContext = selectedNodes.map((node) => {
+    const rawLabel = node.type === "note" ? node.data.text : node.data.label
+    const rawDetail =
+      node.type === "service"
+        ? node.data.description ?? node.data.iconCategory
+        : node.type === "note"
+          ? node.data.variant
+          : undefined
+    const kind =
+      node.type === "service"
+        ? "Service"
+        : node.type === "boundary"
+          ? "Boundary"
+          : node.type === "note"
+            ? "Note"
+            : "Component"
+
+    return {
+      id: node.id,
+      label:
+        typeof rawLabel === "string" && rawLabel.trim()
+          ? rawLabel
+          : `Untitled ${kind.toLowerCase()}`,
+      kind,
+      ...(typeof rawDetail === "string" && rawDetail.trim()
+        ? { detail: rawDetail }
+        : {}),
+    }
+  })
   const soleSelectedEdge =
     selectedEdges.length === 1 && selectedNodes.length === 0 ? selectedEdges[0]! : null
 
@@ -138,6 +169,25 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
 
   const nodes = useMemo(() => sortByBoundaryParenting(canvas.nodes), [canvas.nodes])
 
+  // Chips are spread along their own path here rather than in the edge, which
+  // can only see itself and would happily stack on top of its neighbours.
+  const placements = useRef(new Map<string, Placement>())
+  const dragging = canvas.nodes.some((node) => node.dragging)
+  const edges = useMemo(() => {
+    // A chip rides its live path regardless, so it only has to settle on drop.
+    if (!dragging) {
+      placements.current = layoutEdgeLabels(canvas.nodes, canvas.edges).placements
+    }
+    return canvas.edges.map((edge) => {
+      const placement = placements.current.get(edge.id)
+      if (!placement) return edge
+      return {
+        ...edge,
+        data: { ...edge.data, labelStep: placement.step, labelShift: placement.shift },
+      }
+    })
+  }, [dragging, canvas.nodes, canvas.edges])
+
   // The inspector only makes sense for a single target.
   const inspectedNode =
     selectedNodes.length === 1 && selectedEdges.length === 0 ? selectedNodes[0] : null
@@ -166,7 +216,7 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
         >
           <ReactFlow
             nodes={nodes}
-            edges={canvas.edges}
+            edges={edges}
             nodeTypes={NODE_TYPES}
             edgeTypes={EDGE_TYPES}
             onNodesChange={canvas.onNodesChange}
@@ -209,7 +259,7 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
             fitView={initial.nodes.length > 0}
             fitViewOptions={{ padding: 0.3 }}
             proOptions={{ hideAttribution: true }}
-            className="bg-muted/25"
+            className="bg-muted/20"
           >
             <Background
               variant={BackgroundVariant.Dots}
@@ -231,6 +281,29 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
                 onToggleCopilot={() => setCopilotOpen((open) => !open)}
               />
             </Panel>
+
+            {selectedNodes.length > 0 && selectedEdges.length === 0 && (
+              <Panel position="bottom-center">
+                <SelectionActions
+                  count={selectedNodes.length}
+                  busy={copilot.busy}
+                  onExplain={() => {
+                    setCopilotOpen(true)
+                    void copilot.send(
+                      "Explain how the selected components fit into this system. Do not change the diagram."
+                    )
+                  }}
+                  onImprove={() => {
+                    setCopilotOpen(true)
+                    void copilot.send(
+                      "Improve the selected part of this system design. Keep the changes focused on the selection.",
+                      { review: true }
+                    )
+                  }}
+                  onOpenCopilot={() => setCopilotOpen(true)}
+                />
+              </Panel>
+            )}
 
             {persistence.state !== "idle" && (
               <Panel position="bottom-right">
@@ -279,7 +352,7 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
 
           {canvas.nodes.length === 0 && (
             <div className="pointer-events-none absolute inset-0 grid place-items-center">
-              <div className="flex max-w-xs flex-col items-center gap-1.5 rounded-2xl border border-dashed border-border bg-background/70 px-6 py-5 text-center backdrop-blur-sm">
+              <div className="flex max-w-xs flex-col items-center gap-1.5 px-6 py-5 text-center">
                 <p className="text-[13px] font-medium">Drop your first component</p>
                 <p className="text-[12px] leading-relaxed text-muted-foreground">
                   {paletteOpen ? (
@@ -304,11 +377,15 @@ function SpaceCanvasInner({ space }: { space: SpaceFile }) {
           <CopilotPanel
             messages={copilot.messages}
             busy={copilot.busy}
+            context={copilotContext}
             status={copilot.status}
             models={copilot.models}
             conversations={copilot.conversations}
             conversationId={copilot.conversationId}
             onSend={copilot.send}
+            onApplyProposal={copilot.applyProposal}
+            onDismissProposal={copilot.dismissProposal}
+            onClearContext={canvas.clearSelection}
             onUndo={canvas.undo}
             onModelChange={copilot.setModel}
             onNewConversation={copilot.newConversation}

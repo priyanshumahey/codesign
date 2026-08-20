@@ -32,7 +32,7 @@ function ToolbarButton({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "grid size-7 place-items-center rounded-lg transition-colors",
+        "grid size-7 place-items-center rounded-md transition-colors",
         active
           ? "bg-muted text-foreground"
           : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -67,7 +67,7 @@ export function CanvasToolbar({
   const { zoomIn, zoomOut, fitView } = useReactFlow()
 
   return (
-    <div className="flex items-center gap-0.5 rounded-xl border border-border/70 bg-background/95 p-1 shadow-sm backdrop-blur">
+    <div className="flex items-center gap-0.5 rounded-lg border border-border/80 bg-background/95 p-1 shadow-[0_1px_2px_rgba(0,0,0,0.08),0_10px_28px_-20px_rgba(0,0,0,0.55)] backdrop-blur">
       <ToolbarButton label="Undo" onClick={onUndo}>
         <ArrowCounterClockwise className="size-3.5" />
       </ToolbarButton>

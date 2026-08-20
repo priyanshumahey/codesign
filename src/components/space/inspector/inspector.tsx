@@ -70,14 +70,14 @@ export function Inspector({
   const empty = !node && !edge
 
   return (
-    <aside className="pointer-events-auto absolute right-3 top-3 bottom-3 flex w-[288px] flex-col overflow-hidden rounded-2xl border border-border/70 bg-background/95 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_16px_40px_-16px_rgba(16,24,40,0.28)] backdrop-blur-md">
-      <header className="flex items-start gap-2.5 border-b border-border/60 px-3 py-3">
+    <aside className="pointer-events-auto absolute right-3 top-3 bottom-3 flex w-[296px] flex-col overflow-hidden rounded-xl border border-border/80 bg-background/95 shadow-[0_1px_2px_rgba(0,0,0,0.08),0_18px_48px_-24px_rgba(0,0,0,0.45)] backdrop-blur-md">
+      <header className="flex min-h-14 items-center gap-2.5 border-b border-border/70 px-3 py-2.5">
         {summary.badge}
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground/80">
+          <p className="text-[9px] font-medium uppercase tracking-[0.08em] text-muted-foreground/75">
             {empty ? "Details" : summary.kind}
           </p>
-          <p className="truncate text-[13px] font-medium leading-tight">
+          <p className="truncate text-[13px] font-medium leading-tight text-foreground/90">
             {empty ? "Nothing selected" : summary.title}
           </p>
           {summary.subtitle && (
@@ -101,7 +101,7 @@ export function Inspector({
         </button>
       </header>
 
-      <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-4">
+      <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-3.5">
         {edge ? (
           <EdgeInspector edge={edge} />
         ) : node ? (
@@ -115,7 +115,7 @@ export function Inspector({
       </div>
 
       {!empty && (
-        <footer className="border-t border-border/60 p-2">
+        <footer className="border-t border-border/70 p-2">
           <button
             type="button"
             onClick={onDelete}

@@ -9,11 +9,14 @@ use std::collections::{HashMap, HashSet};
 
 use crate::doc::{Doc, NodeKind, Point, Size, BOUNDARY_SIZE};
 
-const GAP_X: f64 = 96.0;
-const GAP_Y: f64 = 40.0;
-const PAD: f64 = 32.0;
+const MIN_GAP_X: f64 = 160.0;
+const MAX_GAP_X: f64 = 280.0;
+const BASE_GAP_Y: f64 = 72.0;
+const MAX_GAP_Y: f64 = 128.0;
+const FANOUT_GAP_Y: f64 = 12.0;
+const PAD: f64 = 48.0;
 /// Room for the boundary's label, which is drawn inside the top edge.
-const PAD_TOP: f64 = 56.0;
+const PAD_TOP: f64 = 64.0;
 
 /// Re-positions everything, or just the contents of one boundary.
 pub fn layout(doc: &Doc, within: Option<&str>) -> Doc {
@@ -71,7 +74,70 @@ fn layout_children(doc: &mut Doc, parent: Option<&str>) -> Size {
     } else {
         Point::default()
     };
-    place(doc, &layers, origin)
+    let gap_x = horizontal_gap(doc, parent);
+    let gap_y = vertical_gap(&edges);
+    place(doc, &layers, origin, gap_x, gap_y)
+}
+
+/// Reserve enough room between columns for the widest connection chip at this
+/// level. The UI caps chips at roughly 256px, so the upper bound prevents one
+/// verbose label from making an otherwise small diagram enormous.
+fn horizontal_gap(doc: &Doc, parent: Option<&str>) -> f64 {
+    doc.edges
+        .iter()
+        .filter_map(|edge| {
+            let source = ancestor_in(doc, &edge.source, parent)?;
+            let target = ancestor_in(doc, &edge.target, parent)?;
+            (source != target).then(|| estimated_label_clearance(edge))
+        })
+        .fold(MIN_GAP_X, f64::max)
+        .min(MAX_GAP_X)
+}
+
+fn estimated_label_clearance(edge: &crate::doc::Edge) -> f64 {
+    let label = edge
+        .data
+        .get("label")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    let method = edge
+        .data
+        .get("method")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+
+    if label.is_empty() && method.is_empty() {
+        return MIN_GAP_X;
+    }
+
+    let label_width = label.chars().count() as f64 * 5.6;
+    let method_width = method.chars().count() as f64 * 5.2;
+    let between = if label.is_empty() || method.is_empty() {
+        0.0
+    } else {
+        6.0
+    };
+    // Chip padding, method badge padding, and clear air on both sides.
+    (label_width + method_width + between + 56.0).max(MIN_GAP_X)
+}
+
+/// A wide fan-out needs separate visual lanes. Increase row spacing with the
+/// busiest source or target, but cap it so very dense graphs remain navigable.
+fn vertical_gap(edges: &[(String, String)]) -> f64 {
+    let mut incoming: HashMap<&str, usize> = HashMap::new();
+    let mut outgoing: HashMap<&str, usize> = HashMap::new();
+    for (source, target) in edges {
+        *outgoing.entry(source).or_default() += 1;
+        *incoming.entry(target).or_default() += 1;
+    }
+    let fanout = incoming
+        .values()
+        .chain(outgoing.values())
+        .copied()
+        .max()
+        .unwrap_or(1);
+
+    (BASE_GAP_Y + FANOUT_GAP_Y * fanout.saturating_sub(1) as f64).min(MAX_GAP_Y)
 }
 
 /// Layering assumes a DAG. Real architectures have feedback loops — a broadcast
@@ -258,7 +324,13 @@ fn order(
     layers
 }
 
-fn place(doc: &mut Doc, layers: &[Vec<String>], origin: Point) -> Size {
+fn place(
+    doc: &mut Doc,
+    layers: &[Vec<String>],
+    origin: Point,
+    gap_x: f64,
+    gap_y: f64,
+) -> Size {
     let size_of = |doc: &Doc, id: &str| {
         doc.node(id)
             .map(|node| node.size())
@@ -272,7 +344,7 @@ fn place(doc: &mut Doc, layers: &[Vec<String>], origin: Point) -> Size {
             .map(|id| size_of(doc, id).width)
             .fold(0.0, f64::max);
         let height: f64 = column.iter().map(|id| size_of(doc, id).height).sum::<f64>()
-            + GAP_Y * (column.len().saturating_sub(1)) as f64;
+            + gap_y * (column.len().saturating_sub(1)) as f64;
         columns.push((width, height));
     }
 
@@ -293,13 +365,13 @@ fn place(doc: &mut Doc, layers: &[Vec<String>], origin: Point) -> Size {
                     y,
                 };
             }
-            y += size.height + GAP_Y;
+            y += size.height + gap_y;
         }
-        x += width + GAP_X;
+        x += width + gap_x;
     }
 
     Size {
-        width: (x - origin.x - GAP_X).max(0.0),
+        width: (x - origin.x - gap_x).max(0.0),
         height: tallest,
     }
 }
@@ -366,6 +438,61 @@ mod tests {
         let c = out.node("c").unwrap().position;
         assert_eq!(b.x, c.x, "both are one hop from a");
         assert!((b.y - c.y).abs() >= SERVICE_SIZE.height, "b and c overlap");
+    }
+
+    #[test]
+    fn fanout_reserves_separate_visual_lanes() {
+        let doc = Doc {
+            nodes: vec![
+                service("source", None),
+                service("a", None),
+                service("b", None),
+                service("c", None),
+                service("d", None),
+            ],
+            edges: vec![
+                edge("source", "a"),
+                edge("source", "b"),
+                edge("source", "c"),
+                edge("source", "d"),
+            ],
+        };
+
+        let out = layout(&doc, None);
+        let mut rows: Vec<f64> = ["a", "b", "c", "d"]
+            .iter()
+            .map(|id| out.node(id).unwrap().position.y)
+            .collect();
+        rows.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        for pair in rows.windows(2) {
+            assert!(
+                pair[1] - pair[0] >= SERVICE_SIZE.height + 100.0,
+                "fan-out rows are still crowded: {rows:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn long_edge_labels_get_a_readable_corridor() {
+        let mut labelled = edge("a", "b");
+        labelled.data.insert(
+            "method".to_string(),
+            serde_json::Value::String("MUTATION".to_string()),
+        );
+        labelled.data.insert(
+            "label".to_string(),
+            serde_json::Value::String("New unvisited URLs".to_string()),
+        );
+        let doc = Doc {
+            nodes: vec![service("a", None), service("b", None)],
+            edges: vec![labelled],
+        };
+
+        let out = layout(&doc, None);
+        let left = out.node("a").unwrap();
+        let right = out.node("b").unwrap();
+        let corridor = right.position.x - left.position.x - left.size().width;
+        assert!(corridor >= 200.0, "label corridor is too narrow: {corridor}");
     }
 
     #[test]

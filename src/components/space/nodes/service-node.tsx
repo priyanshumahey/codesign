@@ -26,10 +26,10 @@ function ServiceNodeBase({ id, data, selected }: NodeProps & { data: ServiceNode
     >
       <div
         className={cn(
-          "relative grid size-16 place-items-center rounded-2xl border bg-card transition-all duration-150",
+          "relative grid size-16 place-items-center rounded-lg border bg-card transition-colors duration-150",
           selected
-            ? "border-foreground/50 ring-2 ring-foreground/15"
-            : "border-border/70 shadow-[0_1px_2px_rgba(16,24,40,0.05)] group-hover/node:-translate-y-0.5 group-hover/node:border-foreground/25 group-hover/node:shadow-[0_4px_12px_-4px_rgba(16,24,40,0.18)]"
+            ? "border-brand/60 ring-2 ring-brand/15"
+            : "border-border/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)] group-hover/node:border-foreground/25"
         )}
       >
         {/* Anchored to the tile, not the wrapper, so edges meet the icon
@@ -59,7 +59,7 @@ function ServiceNodeBase({ id, data, selected }: NodeProps & { data: ServiceNode
           <span
             className={cn(
               "max-w-full truncate rounded px-1 text-center text-[11px] font-medium leading-tight",
-              selected && "bg-foreground/5"
+              selected && "bg-brand/8"
             )}
           >
             {label}
