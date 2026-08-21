@@ -423,12 +423,18 @@ impl AdcCredentials {
         if let Ok(explicit) = std::env::var("GOOGLE_APPLICATION_CREDENTIALS") {
             return Some(std::path::PathBuf::from(explicit));
         }
-        let home = std::env::var("HOME")
-            .or_else(|_| std::env::var("APPDATA"))
-            .ok()?;
+        #[cfg(target_os = "windows")]
+        let config_dir = std::env::var("APPDATA")
+            .ok()
+            .map(std::path::PathBuf::from)?;
+        #[cfg(not(target_os = "windows"))]
+        let config_dir = std::env::var("HOME")
+            .ok()
+            .map(std::path::PathBuf::from)?
+            .join(".config");
+
         Some(
-            std::path::PathBuf::from(home)
-                .join(".config")
+            config_dir
                 .join("gcloud")
                 .join("application_default_credentials.json"),
         )
@@ -451,6 +457,26 @@ impl AdcCredentials {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn adc_path_uses_the_platform_gcloud_directory() {
+        let path = AdcCredentials::path().expect("finds the gcloud config directory");
+        #[cfg(target_os = "windows")]
+        assert_eq!(
+            path,
+            std::path::PathBuf::from(std::env::var("APPDATA").unwrap())
+                .join("gcloud")
+                .join("application_default_credentials.json")
+        );
+        #[cfg(not(target_os = "windows"))]
+        assert_eq!(
+            path,
+            std::path::PathBuf::from(std::env::var("HOME").unwrap())
+                .join(".config")
+                .join("gcloud")
+                .join("application_default_credentials.json")
+        );
+    }
 
     #[test]
     fn sse_frames_are_unwrapped() {
